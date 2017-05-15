@@ -57,7 +57,8 @@ def read_image_data(
       edges_file_name = '%s-%d_padded.npy' % (model_name, orientation)
       image_file_name = '%s-%d_padded.png' % (screenshot_dir, orientation)
       # Loaded image is in HWC format.
-      edges = np.load(os.path.join(full_model_path, edges_file_name))
+      edges = np.load(
+          os.path.join(full_model_path, edges_file_name)).astype(np.float32)
       img = imread(os.path.join(full_model_path, image_file_name))
       X[model_start_index+orientation] = edges
       Y[model_start_index+orientation] = img
