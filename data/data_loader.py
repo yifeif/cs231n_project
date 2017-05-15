@@ -1,7 +1,7 @@
 """Utilities for loading ShapeNet screenshot data."""
 import argparse
 import logging
-import np
+import numpy as np
 import os
 from scipy.misc import imread
 
