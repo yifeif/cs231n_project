@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from PIL import Image
 from skimage import feature
@@ -73,5 +74,14 @@ def preprocess_rawrgb(path):
   pad_and_save_image(edge_path, (256, 256), False)
 
 
+def preprocess_rawrgb_dir(path):
+  """Create and save padded input, edge, and padded edge for all .png under path.
+
+  Inputs:
+    path: raw rgb image path
+  """
+  images = f = [os.path.join(dp, f) for dp, dn, filenames in os.walk(path) for f in filenames if os.path.splitext(f)[1] == '.png']
+  for image_path in images:
+    preprocess_rawrgb(image_path)
 
 
