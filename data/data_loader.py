@@ -84,8 +84,8 @@ def input(
   image = tf.image.decode_png(tf.read_file(input_queue[1]), channels=_CHANNELS)
   image.set_shape([_HEIGHT, _WIDTH, 3])
 
-  min_after_dequeue = 1 #0000  # size of buffer to sample from
-  num_preprocess_threads = 1
+  min_after_dequeue = 10000  # size of buffer to sample from
+  num_preprocess_threads = 16
   capacity = min_after_dequeue + 3 * batch_size
   edges_batch, images_batch = tf.train.shuffle_batch(
       [edges, image], batch_size=batch_size,

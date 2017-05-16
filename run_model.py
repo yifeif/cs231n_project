@@ -1,14 +1,21 @@
 """Runs pix2pix model based on https://arxiv.org/pdf/1611.07004.pdf."""
 import argparse
 from data import data_loader
+import model
 import os
+import tensorflow as tf
+
 
 def main():
+  num_epoch = 1 # 10
+
   train_models_file = os.path.join(FLAGS.data_split_dir, 'train_data.txt')
   edges_batch, images_batch = (
-      data_loader.input(FLAGS.screenshots_dir, train_models_file))
-  # TODO: setup model that uses training data above.
-  pass
+      data_loader.input(FLAGS.screenshots_dir, train_models_file, batch_size=16))
+
+  with tf.Session() as sess:
+    tf.train.start_queue_runners(sess=sess)
+    model.run_a_gan(sess, edges_batch, images_batch, num_epoch=num_epoch)
 
 
 if __name__ == '__main__':

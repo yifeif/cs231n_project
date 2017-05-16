@@ -17,11 +17,11 @@ dropout_p = 0.5
 
 def leaky_relu(x, alpha=0.2):
     """Compute the leaky ReLU activation function.
-    
+
     Inputs:
     - x: TensorFlow Tensor with arbitrary shape
     - alpha: leak parameter for leaky ReLU
-    
+
     Returns:
     TensorFlow Tensor with the same shape as x
     """
@@ -33,7 +33,7 @@ def discriminator(x):
     """Compute discriminator score for a batch of input images.
     256 × 256 discriminator:
     C64-C128-C256-C512-C512-C512
-    
+
     Inputs:
     - x: TensorFlow Tensor of flattened input images, shape [batch_size, 256, 256, 3]
     
@@ -44,26 +44,26 @@ def discriminator(x):
     with tf.variable_scope("discriminator"):
 
         # layer_1: [batch, 256, 256, 3] => [batch, 128, 128, 64]
-        a1 = tf.layers.conv2d(x, 64, (4,4), stride=(2,2), initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+        a1 = tf.layers.conv2d(x, 64, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         # layer_2: [batch, 128, 128, 128] => [batch, 64, 64, 128]
-        a2 = tf.layers.conv2d(a1, 128, (4,4), stride=(2,2), initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+        a2 = tf.layers.conv2d(a1, 128, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         a2_bn = tf.layers.batch_normalization(a2)
         # layer_3: [batch, 64, 64, 128] => [batch, 32, 32, 256]
-        a3 = tf.layers.conv2d(a2_bn, 256, (4,4), stride=(2,2), initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+        a3 = tf.layers.conv2d(a2_bn, 256, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         a3_bn = tf.layers.batch_normalization(a3)
         # layer_4: [batch, 32, 32, 256] => [batch, 31, 31, 512]
-        a4 = tf.layers.conv2d(a3_bn, 512, (4,4), stride=(1,1), initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+        a4 = tf.layers.conv2d(a3_bn, 512, (4,4), strides=(1,1), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         a4_bn = tf.layers.batch_normalization(a4)
 
         # layer_5: [batch, 32, 32, 512] => [batch, 30, 30, 512]
-        a5 = tf.layers.conv2d(a4_bn, 512, (4,4), stride=(1,1), initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+        a5 = tf.layers.conv2d(a4_bn, 512, (4,4), strides=(1,1), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         a5_bn = tf.layers.batch_normalization(a5)
 
         # layer_6: [batch, 32, 32, 512] => [batch, 29, 29, 512]
-        a6 = tf.layers.conv2d(a5_bn, 512, (4,4), stride=(1,1), initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+        a6 = tf.layers.conv2d(a5_bn, 512, (4,4), strides=(1,1), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         a6_bn = tf.layers.batch_normalization(a6)
 
-        logits = tf.layers.conv2d(a6_bn, 1, (29,29), stride=(1,1), initializer=tf.random_normal_initializer(0, 0.02))
+        logits = tf.layers.conv2d(a6_bn, 1, (29,29), strides=(1,1), kernel_initializer=tf.random_normal_initializer(0, 0.02))
 
     return logits
 
@@ -96,63 +96,63 @@ def generator(d):
     TensorFlow Tensor of generated images, with shape [batch_size, 784].
     """
     with tf.variable_scope("generator"):
-    	# Encoder:
+        # Encoder:
         # layer_1: [batch, 256, 256, 1] => [batch, 128, 128, 64]
-        a1 = tf.layers.conv2d(d, 64, (4,4), strides=(2,2), initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+        a1 = tf.layers.conv2d(d, 64, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         # layer_2: [batch, 128, 128, 128] => [batch, 64, 64, 128]
-        a2 = tf.layers.conv2d(a1, 128, (4,4), strides=(2,2), initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+        a2 = tf.layers.conv2d(a1, 128, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         a2_bn = tf.layers.batch_normalization(a2)
         # layer_3: [batch, 64, 64, 128] => [batch, 32, 32, 256]
-        a3 = tf.layers.conv2d(a2_bn, 256, (4,4), strides=(2,2), initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+        a3 = tf.layers.conv2d(a2_bn, 256, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         a3_bn = tf.layers.batch_normalization(a3)
         # layer_4: [batch, 32, 32, 256] => [batch, 16, 16, 512]
-        a4 = tf.layers.conv2d(a3_bn, 512, (4,4), strides=(2,2), initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+        a4 = tf.layers.conv2d(a3_bn, 512, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         a4_bn = tf.layers.batch_normalization(a4)
         # layer_5: [batch, 16, 16, 512] => [batch, 8, 8, 512]
-        a5 = tf.layers.conv2d(a4_bn, 512, (4,4), strides=(2,2), initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+        a5 = tf.layers.conv2d(a4_bn, 512, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         a5_bn = tf.layers.batch_normalization(a5)
         # layer_6: [batch, 8, 8, 512] => [batch, 4, 4, 512]
-        a6 = tf.layers.conv2d(a5_bn, 512, (4,4), strides=(2,2), initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+        a6 = tf.layers.conv2d(a5_bn, 512, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         a6_bn = tf.layers.batch_normalization(a6)
-  
+
         # Decoder
-        d6 = tf.layers.conv2d_transpose(a6_bn, 512, (4,4), strides=(2,2), initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d6 = tf.layers.conv2d_transpose(a6_bn, 512, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d6_bn = tf.layers.batch_normalization(d6)
         d6_dropout = tf.layers.dropout(d6_bn, dropout_p)
 
-        d5 = tf.layers.conv2d_transpose(d6_dropout, 512, (4,4), strides=(2,2), initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d5 = tf.layers.conv2d_transpose(d6_dropout, 512, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d5_bn = tf.layers.batch_normalization(d5)
         d5_dropout = tf.layers.dropout(d5_bn, dropout_p)
 
-        d4 = tf.layers.conv2d_transpose(d5_dropout, 512, (4,4), strides=(2,2), initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d4 = tf.layers.conv2d_transpose(d5_dropout, 512, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d4_bn = tf.layers.batch_normalization(d4)
         d4_dropout = tf.layers.dropout(d4_bn, dropout_p)
 
-        d3 = tf.layers.conv2d_transpose(d4_dropout, 256, (4,4), strides=(2,2), initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d3 = tf.layers.conv2d_transpose(d4_dropout, 256, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d3_bn = tf.layers.batch_normalization(d3)
         d3_dropout = tf.layers.dropout(d3_bn, dropout_p)
-        
-        d2 = tf.layers.conv2d_transpose(d3_dropout, 128, (4,4), strides=(2,2), initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+
+        d2 = tf.layers.conv2d_transpose(d3_dropout, 128, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d2_bn = tf.layers.batch_normalization(d2)
         d2_dropout = tf.layers.dropout(d2_bn, dropout_p)
 
-        d1 = tf.layers.conv2d_transpose(d2_dropout, 64, (4,4), strides=(2,2), initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d1 = tf.layers.conv2d_transpose(d2_dropout, 64, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d1_bn = tf.layers.batch_normalization(d1)
         d1_dropout = tf.layers.dropout(d1_bn, dropout_p)
 
-        img = tf.layers.conv2d(d1_dropout, 3, (1, 1), strides=(1,1), padding='same', initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.tanh)
+        img = tf.layers.conv2d(d1_dropout, 3, (1, 1), strides=(1,1), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.tanh)
 
     return img
 
 def gan_loss(logits_real, logits_fake, x, y):
     """Compute the GAN loss.
-    
+
     Inputs:
     - logits_real: Tensor, shape [batch_size, 1], output of discriminator
         Log probability that the image is real for each real image
     - logits_fake: Tensor, shape[batch_size, 1], output of discriminator
         Log probability that the image is real for each fake image
-    
+
     Returns:
     - D_loss: discriminator loss scalar
     - G_loss: generator loss scalar
@@ -160,10 +160,10 @@ def gan_loss(logits_real, logits_fake, x, y):
     # TODO: compute D_loss and G_loss
     D_loss = tf.losses.sigmoid_cross_entropy(tf.ones_like(logits_real), logits_real)
     D_loss += tf.losses.sigmoid_cross_entropy(tf.zeros_like(logits_fake), logits_fake)
-    
+
     G_loss = tf.losses.sigmoid_cross_entropy(tf.ones_like(logits_fake), logits_fake)
     G_loss += tf.reduce_sum(tf.abs(x - y), axis=[1,2,3])
-        
+
     D_loss = tf.reduce_mean(D_loss)
     G_loss = tf.reduce_mean(G_loss)
     return D_loss, G_loss
@@ -171,11 +171,11 @@ def gan_loss(logits_real, logits_fake, x, y):
 
 def get_solvers(learning_rate=1e-3, beta1=0.5):
     """Create solvers for GAN training.
-    
+
     Inputs:
     - learning_rate: learning rate to use for both solvers
     - beta1: beta1 parameter for both solvers (first moment decay)
-    
+
     Returns:
     - D_solver: instance of tf.train.AdamOptimizer with correct learning_rate and beta1
     - G_solver: instance of tf.train.AdamOptimizer with correct learning_rate and beta1
@@ -192,10 +192,9 @@ def get_solvers(learning_rate=1e-3, beta1=0.5):
 
 
 # a giant helper function
-def run_a_gan(sess, G_train_step, G_loss, D_train_step, D_loss, G_extra_step, D_extra_step,\
-              show_every=250, print_every=50, batch_size=128, num_epoch=10):
+def run_a_gan(sess, edges_batch, images_batch, show_every=250, print_every=50, num_epoch=10):
     """Train a GAN for a certain number of epochs.
-    
+
     Inputs:
     - sess: A tf.Session that we want to use to run our data
     - G_train_step: A training step for the Generator
@@ -204,39 +203,44 @@ def run_a_gan(sess, G_train_step, G_loss, D_train_step, D_loss, G_extra_step, D_
     - D_loss: Discriminator loss
     - G_extra_step: A collection of tf.GraphKeys.UPDATE_OPS for generator
     - D_extra_step: A collection of tf.GraphKeys.UPDATE_OPS for discriminator
+    - edges_batch: A (N, 256, 256, 1) Tensor representing batch of edge images.
+    - images_batch: A (N, 256, 256, 3) Tensor representing batch of colored
+      images.
     Returns:
-        Nothing
+      Nothing
     """
     # Create model
     # placeholder for images from the training dataset
-	x = tf.placeholder(tf.float32, [None, H, W, C])
+    # x = tf.placeholder(tf.float32, [None, H, W, C])
+    x = images_batch
     # edge image
-    d = tf.placeholder(tf.float32, [None, H, W, 1])
+    # d = tf.placeholder(tf.float32, [None, H, W, 1])
+    d = edges_batch
     # generated images
     y = generator(d)
 
-	with tf.variable_scope("") as scope:
-	    #scale images to be -1 to 1
-	    logits_real = discriminator(x)
-	    # Re-use discriminator weights on new inputs
-	    scope.reuse_variables()
-	    logits_fake = discriminator(y)
+    with tf.variable_scope("") as scope:
+        #scale images to be -1 to 1
+        logits_real = discriminator(x)
+        # Re-use discriminator weights on new inputs
+        scope.reuse_variables()
+        logits_fake = discriminator(y)
 
-	# Get the list of variables for the discriminator and generator
-	D_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'discriminator')
-	G_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'generator') 
+    # Get the list of variables for the discriminator and generator
+    D_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'discriminator')
+    G_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'generator') 
 
-	# get our solver
-	D_solver, G_solver = get_solvers()
+    # get our solver
+    D_solver, G_solver = get_solvers()
 
-	# get our loss
-	D_loss, G_loss = gan_loss(logits_real, logits_fake, x, y)
+    # get our loss
+    D_loss, G_loss = gan_loss(logits_real, logits_fake, x, y)
 
-	# setup training steps
-	D_train_step = D_solver.minimize(D_loss, var_list=D_vars)
-	G_train_step = G_solver.minimize(G_loss, var_list=G_vars)
-	D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'discriminator')
-	G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'generator')
+    # setup training steps
+    D_train_step = D_solver.minimize(D_loss, var_list=D_vars)
+    G_train_step = G_solver.minimize(G_loss, var_list=G_vars)
+    D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'discriminator')
+    G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'generator')
 
 
 
@@ -252,7 +256,7 @@ def run_a_gan(sess, G_train_step, G_loss, D_train_step, D_loss, G_extra_step, D_
             print()
         # run a batch of data through the network
         # x, e = sample_from_data()
-        _, D_loss_curr = sess.run([D_train_step, D_loss], feed_dict={x: x, e: e})
+        _, D_loss_curr = sess.run([D_train_step, D_loss])
         _, G_loss_curr = sess.run([G_train_step, G_loss])
 
         # print loss every so often.

@@ -18,7 +18,7 @@ class DataLoaderTest(unittest.TestCase):
     shutil.rmtree(self.test_dir)
 
   def test_load_simple_data(self):
-    image = np.random.choice(range(256), size=(256, 256, 3)).astype(np.float32)
+    image = np.random.choice(range(256), size=(256, 256, 3)).astype(np.uint8)
     edges = np.random.choice([True, False], size=(256, 256)).astype(np.float32)
 
     model_dir = os.path.join(self.test_dir, 'abc')

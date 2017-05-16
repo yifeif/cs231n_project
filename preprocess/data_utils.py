@@ -80,7 +80,7 @@ def preprocess_rawrgb(path):
   """
   edge_path = save_edge(path)
   pad_and_save_image(path, (256, 256, 3), np.uint8(255))
-  pad_and_save_image(edge_path, (256, 256), False)
+  pad_and_save_image(edge_path, (256, 256), np.float32(0))
 
 
 def preprocess_rawrgb_dir(path):
