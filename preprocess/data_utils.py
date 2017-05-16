@@ -5,6 +5,10 @@ from skimage import feature
 from scipy.misc import imread, imsave
 
 
+# Image height before preprocessing
+_ORIGINAL_HEIGHT = 192
+
+
 def pad_and_save_image(path, output_dim, pad_value):
   """Load image from path, center padded it to output_dim with the given
   pad_value.
@@ -19,8 +23,10 @@ def pad_and_save_image(path, output_dim, pad_value):
   """
   name, extension = path.split('.')
   # Load input image
-  if extension == 'npy':
-    image = np.load(path)
+  if extension == 'bin':
+    #image = np.load(path)
+    image = np.fromfile(path, dtype=np.bool)
+    image = image.reshape((_ORIGINAL_HEIGHT, 256))
   else:
     image = imread(path)
 
@@ -32,14 +38,14 @@ def pad_and_save_image(path, output_dim, pad_value):
 
   # Insert input properly
   input_dim = image.shape
-  offset = np.floor((np.array(output_dim) - np.array(input_dim))/2)
+  offset = np.floor((np.array(output_dim) - np.array(input_dim))/2).astype(int)
   input_index = [slice(offset[dim], offset[dim] + input_dim[dim]) for dim in range(len(input_dim))]
   padded_image[input_index] = image
 
   # Save output
   new_name = name + '_padded' + '.' + extension
-  if extension == 'npy':
-    np.save(new_name, padded_image)
+  if extension == 'bin':
+    padded_image.tofile(new_name)
   else:
     imsave(new_name, padded_image)
   return new_name
@@ -58,9 +64,10 @@ def save_edge(rgb_image_path, sigma=1.2):
   image = Image.open(rgb_image_path).convert('L')
   image = np.array(image)
   edge = feature.canny(image, sigma=sigma)
-  edge_path = rgb_image_path.rstrip('.png')
-  np.save(edge_path, edge)
-  return edge_path + '.npy'
+  edge_path = rgb_image_path.rstrip('.png') + '.bin'
+
+  edge.tofile(edge_path)
+  return edge_path
 
 
 def preprocess_rawrgb(path):

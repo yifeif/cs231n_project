@@ -1,11 +1,12 @@
 """Runs pix2pix model based on https://arxiv.org/pdf/1611.07004.pdf."""
 import argparse
 from data import data_loader
+import os
 
 def main():
-  X_train, Y_train, _, X_val, Y_val, _, X_test, Y_test, _ = (
-      data_loader.load_ShapeNet_screenshot_data(
-          FLAGS.screenshots_dir, FLAGS.data_split_dir))
+  train_models_file = os.path.join(FLAGS.data_split_dir, 'train_data.txt')
+  edges_batch, images_batch = (
+      data_loader.input(FLAGS.screenshots_dir, train_models_file))
   # TODO: setup model that uses training data above.
   pass
 
@@ -23,5 +24,4 @@ if __name__ == '__main__':
            'val_data.txt and train_data.txt files.')
 
   FLAGS, _ = parser.parse_known_args()
-  logging.basicConfig(level=logging.DEBUG)
   main()
