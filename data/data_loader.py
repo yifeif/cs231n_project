@@ -81,8 +81,14 @@ def input(
 
   edges = tf.decode_raw(tf.read_file(input_queue[0]), out_type=tf.float32)
   edges = tf.cast(tf.reshape(edges, [_HEIGHT, _WIDTH, 1]), dtype=tf.float32)
-  image = tf.image.decode_png(tf.read_file(input_queue[1]), channels=_CHANNELS)
+  image = tf.cast(
+      tf.image.decode_png(tf.read_file(input_queue[1]), channels=_CHANNELS),
+      tf.float32)
   image.set_shape([_HEIGHT, _WIDTH, 3])
+
+  # Shift and scale so that edges and image are between -1 and 1
+  edges = edges - 1
+  image = (image / 256) - 1
 
   min_after_dequeue = 10000  # size of buffer to sample from
   num_preprocess_threads = 16
