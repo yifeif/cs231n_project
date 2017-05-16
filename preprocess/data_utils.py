@@ -88,7 +88,10 @@ def preprocess_rawrgb_dir(path):
     path: raw rgb image path
   """
   images = f = [os.path.join(dp, f) for dp, dn, filenames in os.walk(path) for f in filenames if os.path.splitext(f)[1] == '.png']
-  for image_path in images:
+  print('Total images number: %d' % len(images))
+  for idx, image_path in enumerate(images):
+    if idx % 1000 == 999:
+      print('Processed %d out of %d images' % (idx+1, len(images)))
     preprocess_rawrgb(image_path)
 
 
