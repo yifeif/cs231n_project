@@ -50,10 +50,6 @@ def get_inputs_for_model_paths(model_paths):
       edge_files.append(edges_file_path)
       image_files.append(image_file_path)
   orientations = list(range(_ORIENTATIONS_PER_MODEL))*len(model_paths)
-  print('Inputs for %s' % model_paths[0])
-  print(str(edge_files))
-  print(str(image_files))
-  print(str(orientations))
 
   return edge_files, image_files, orientations
 
