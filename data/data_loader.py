@@ -44,7 +44,7 @@ def get_inputs_for_model_paths(model_paths):
   image_files = []
   for model_path in model_paths:
     for orientation in range(_ORIENTATIONS_PER_MODEL):
-      edges_file_path = '%s-%d_padded.npy' % (model_path, orientation)
+      edges_file_path = '%s-%d_padded.bin' % (model_path, orientation)
       image_file_path = '%s-%d_padded.png' % (model_path, orientation)
       edge_files.append(edges_file_path)
       image_files.append(image_file_path)
