@@ -36,7 +36,7 @@ def get_inputs_for_model_paths(model_paths):
 
   Returns:
     A tuple of equally-sized lists:
-    List of paths to edge detection output files in .npy format.
+    List of paths to edge detection output files in .bin format.
     List of paths to image files.
     List of orientations.
   """
