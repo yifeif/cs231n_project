@@ -1,3 +1,4 @@
+import argparse
 import os
 import numpy as np
 from PIL import Image
@@ -94,4 +95,17 @@ def preprocess_rawrgb_dir(path):
       print('Processed %d out of %d images' % (idx+1, len(images)))
     preprocess_rawrgb(image_path)
 
+def main():
+  preprocess_rawrgb_dir(FLAGS.screenshots_dir)
 
+
+if __name__ == '__main__':
+  parser = argparse.ArgumentParser()
+  parser.register(
+      'type', 'bool', lambda v: v.lower() in ('true', 't', 'y', 'yes'))
+  parser.add_argument(
+      '--screenshots_dir', type=str, default=None, required=True,
+      help='Path to the screenshots directory containing data images.')
+
+  FLAGS, _ = parser.parse_known_args()
+  main()
