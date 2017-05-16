@@ -25,7 +25,7 @@ def pad_and_save_image(path, output_dim, pad_value):
   # Load input image
   if extension == 'bin':
     #image = np.load(path)
-    image = np.fromfile(path, dtype=np.bool)
+    image = np.fromfile(path, dtype=np.float32)
     image = image.reshape((_ORIGINAL_HEIGHT, 256))
   else:
     image = imread(path)
@@ -53,7 +53,8 @@ def pad_and_save_image(path, output_dim, pad_value):
 def save_edge(rgb_image_path, sigma=1.2):
   """Convert RGB image to edge.
   Load rgb image, convert to boolean map with edge as True,
-  and save as npy file with the same name in the same dir.
+  and save as binary file with the same name in the same dir.
+  Note: we cast boolean values to float32 before saving.
 
   Inputs:
     RGB image path
@@ -66,7 +67,7 @@ def save_edge(rgb_image_path, sigma=1.2):
   edge = feature.canny(image, sigma=sigma)
   edge_path = rgb_image_path.rstrip('.png') + '.bin'
 
-  edge.tofile(edge_path)
+  edge.astype(np.float32).tofile(edge_path)
   return edge_path
 
 

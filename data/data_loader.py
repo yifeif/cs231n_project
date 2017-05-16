@@ -43,12 +43,18 @@ def get_inputs_for_model_paths(model_paths):
   edge_files = []
   image_files = []
   for model_path in model_paths:
+    model_name = os.path.basename(model_path)
     for orientation in range(_ORIENTATIONS_PER_MODEL):
-      edges_file_path = '%s-%d_padded.bin' % (model_path, orientation)
-      image_file_path = '%s-%d_padded.png' % (model_path, orientation)
+      edges_file_path = '%s/%s-%d_padded.bin' % (model_path, model_name, orientation)
+      image_file_path = '%s/%s-%d_padded.png' % (model_path, model_name, orientation)
       edge_files.append(edges_file_path)
       image_files.append(image_file_path)
   orientations = list(range(_ORIENTATIONS_PER_MODEL))*len(model_paths)
+  print('Inputs for %s' % model_paths[0])
+  print(str(edge_files))
+  print(str(image_files))
+  print(str(orientations))
+
   return edge_files, image_files, orientations
 
 
@@ -77,13 +83,13 @@ def input(
       get_model_paths(model_list_file, screenshots_dir))
   input_queue = tf.train.slice_input_producer([edges_paths, image_paths])
 
-  edges = tf.decode_raw(tf.read_file(input_queue[0]), out_type=tf.bool)
+  edges = tf.decode_raw(tf.read_file(input_queue[0]), out_type=tf.float32)
   edges = tf.cast(tf.reshape(edges, [_HEIGHT, _WIDTH, 1]), dtype=tf.float32)
   image = tf.image.decode_png(tf.read_file(input_queue[1]), channels=_CHANNELS)
   image.set_shape([_HEIGHT, _WIDTH, 3])
 
-  min_after_dequeue = 10000  # size of buffer to sample from
-  num_preprocess_threads = 10
+  min_after_dequeue = 1 #0000  # size of buffer to sample from
+  num_preprocess_threads = 1
   capacity = min_after_dequeue + 3 * batch_size
   edges_batch, images_batch = tf.train.shuffle_batch(
       [edges, image], batch_size=batch_size,
