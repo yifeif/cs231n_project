@@ -27,6 +27,7 @@ def run_a_gan(sess, edges_batch, images_batch, num_examples, show_every=250, pri
     """
     batch_size = int(edges_batch.shape[0])
     global_step = tf.contrib.framework.get_or_create_global_step()
+    summary_writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
     # Create model
     # placeholder for images from the training dataset
     # x = tf.placeholder(tf.float32, [None, H, W, C])
@@ -53,6 +54,11 @@ def run_a_gan(sess, edges_batch, images_batch, num_examples, show_every=250, pri
 
     # get our loss
     D_loss, G_loss = gan_loss(logits_real, logits_fake, x, y)
+    tf.summary.scalar('D_loss', D_loss)
+    tf.summary.scalar('G_loss', G_loss)
+
+    summaries = tf.get_collection(tf.GraphKeys.SUMMARIES)
+    summary_op = tf.summary.merge(summaries)
 
     # setup training steps
     D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'discriminator')
@@ -93,6 +99,9 @@ def run_a_gan(sess, edges_batch, images_batch, num_examples, show_every=250, pri
           # x, e = sample_from_data()
           _, D_loss_curr = sess.run([D_train_step, D_loss])
           _, G_loss_curr, gs = sess.run([G_train_step, G_loss, global_step])
+
+          summary_str = sess.run(summary_op)
+          summary_writer.add_summary(summary_str, gs)
 
           # print loss every so often.
           # We want to make sure D_loss doesn't go to 0
