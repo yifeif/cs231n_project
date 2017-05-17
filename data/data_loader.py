@@ -87,8 +87,8 @@ def input(
   image.set_shape([_HEIGHT, _WIDTH, 3])
 
   # Shift and scale so that edges and image are between -1 and 1
-  edges = edges - 1
-  image = (image / 256) - 1
+  edges = 2*edges - 1
+  image = (image / 128.0) - 1
 
   min_after_dequeue = 1000  # size of buffer to sample from
   num_preprocess_threads = 16
