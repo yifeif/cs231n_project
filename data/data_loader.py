@@ -90,7 +90,7 @@ def input(
   edges = edges - 1
   image = (image / 256) - 1
 
-  min_after_dequeue = 10000  # size of buffer to sample from
+  min_after_dequeue = 1000  # size of buffer to sample from
   num_preprocess_threads = 16
   capacity = min_after_dequeue + 3 * batch_size
   edges_batch, images_batch = tf.train.shuffle_batch(
