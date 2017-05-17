@@ -21,7 +21,7 @@ def save_images(samples, sample_images_dir, label):
 
 # a giant helper function
 def run_a_gan(sess, data_split_dir, num_examples,
-              show_every=50, print_every=50, num_epoch=10):
+              show_every=1000, print_every=100, num_epoch=15):
   """Train a GAN for a certain number of epochs.
 
   Inputs:
@@ -54,8 +54,6 @@ def run_a_gan(sess, data_split_dir, num_examples,
   edges_batch_placeholder = tf.placeholder(tf.float32, (None, 256, 256, 1))
   images_batch_placeholder = tf.placeholder(tf.float32, (None, 256, 256, 3))
 
-  num_examples = 10000
-  num_epoch = 1
   sample_images_dir = os.path.join(FLAGS.sample_images_dir, "train")
   vsample_images_dir = os.path.join(FLAGS.sample_images_dir, "validation")
   # Create model
@@ -126,7 +124,7 @@ def run_a_gan(sess, data_split_dir, num_examples,
   with coord.stop_on_exception():
     for it in range(max_iter):
         edges_batch_curr, images_batch_curr = sess.run([edges_batch, images_batch])
-        print('Iteration %d' % it)
+        #print('Iteration %d' % it)
         # every show often, show a sample result
         if it % show_every == 0:
           samples = sess.run(
@@ -193,7 +191,7 @@ def main():
   if not data_split_dir:
     data_split_dir = os.path.join(
         os.path.dirname(os.path.realpath(__file__)), 'data')
-  num_epoch = 1 # 10
+  num_epoch = 15
 
   with tf.Session() as sess:
     run_a_gan(
@@ -208,14 +206,14 @@ if __name__ == '__main__':
       '--screenshots_dir', type=str, default=None, required=True,
       help='Path to the screenshots directory containing data images.')
   parser.add_argument(
-      '--train_dir', type=str, default=None, required=True,
+      '--train_dir', type=str, default='/data/annarev/checkpoints', required=False,
       help='Path to the chkpt files.')
   parser.add_argument(
       '--data_split_dir', type=str, default=None, required=False,
       help='Path to directory that contains test_data.txt, '
            'val_data.txt and train_data.txt files.')
   parser.add_argument(
-      '--sample_images_dir', type=str, default='/tmp/output_images', required=False,
+      '--sample_images_dir', type=str, default='/data/annarev/output_images', required=False,
       help='Directory to store output images at.')
 
   FLAGS, _ = parser.parse_known_args()

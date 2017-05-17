@@ -25,15 +25,12 @@ def leaky_relu(x, alpha=0.2):
     Returns:
     TensorFlow Tensor with the same shape as x
     """
-    # f(x)=1(x<0)(αx)+1(x>=0)(x)
     return tf.maximum(alpha*x, x)
 
 
 def discriminator(x, training=True):
     """Compute discriminator score for a batch of input images.
-    256 × 256 discriminator:
-    C64-C128-C256-C512-C512-C512
-
+    256 x 256 discriminator:
     Inputs:
     - x: TensorFlow Tensor of flattened input images, shape [batch_size, 256, 256, 3]
     
@@ -86,10 +83,10 @@ def generator(d, training=True, dropout_training=True):
 	All ReLUs in the encoder are leaky, with slope 0.2, while
 	ReLUs in the decoder are not leaky.
 	The U-Net architecture is identical except with skip connections
-	between each layer i in the encoder and layer n−i
+        between each layer i in the encoder and layer n-i
 	in the decoder, where n is the total number of layers. The
 	skip connections concatenate activations from layer i to
-	layer n − i. This changes the number of channels in the
+	layer n - i. This changes the number of channels in the
 	decoder:    
     Inputs:
     - d: TensorFlow Tensor of edge image with shape [batch_size, 256, 256, 1]
@@ -117,33 +114,42 @@ def generator(d, training=True, dropout_training=True):
         # layer_6: [batch, 8, 8, 512] => [batch, 4, 4, 512]
         a6 = tf.layers.conv2d(a5_bn, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         a6_bn = tf.layers.batch_normalization(a6, training=training)
+        # layer_7: [batch, 4, 4, 512] => [batch, 2, 2, 512]
+        a7 = tf.layers.conv2d(a6_bn, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+        a7_bn = tf.layers.batch_normalization(a7, training=training)
+        # layer_8: [batch, 2, 2, 512] => [batch, 1, 1, 512]
+        a8 = tf.layers.conv2d(a7_bn, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+        a8_bn = tf.layers.batch_normalization(a8, training=training)
 
         # Decoder
-        d6 = tf.layers.conv2d_transpose(a6_bn, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d8 = tf.layers.conv2d_transpose(a8_bn, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d8_bn = tf.layers.batch_normalization(d8, training=training)
+        d8_dropout = tf.layers.dropout(d8_bn, dropout_p, training=dropout_training)
+
+        d7 = tf.layers.conv2d_transpose(d8_dropout, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d7_bn = tf.layers.batch_normalization(d7, training=training)
+        d7_dropout = tf.layers.dropout(d7_bn, dropout_p, training=dropout_training)
+
+        d6 = tf.layers.conv2d_transpose(d7_dropout, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d6_bn = tf.layers.batch_normalization(d6, training=training)
         d6_dropout = tf.layers.dropout(d6_bn, dropout_p, training=dropout_training)
 
         d5 = tf.layers.conv2d_transpose(d6_dropout, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d5_bn = tf.layers.batch_normalization(d5, training=training)
-        d5_dropout = tf.layers.dropout(d5_bn, dropout_p, training=dropout_training)
 
-        d4 = tf.layers.conv2d_transpose(d5_dropout, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d4 = tf.layers.conv2d_transpose(d5_bn, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d4_bn = tf.layers.batch_normalization(d4, training=training)
-        d4_dropout = tf.layers.dropout(d4_bn, dropout_p, training=dropout_training)
 
-        d3 = tf.layers.conv2d_transpose(d4_dropout, 256, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d3 = tf.layers.conv2d_transpose(d4_bn, 256, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d3_bn = tf.layers.batch_normalization(d3, training=training)
-        d3_dropout = tf.layers.dropout(d3_bn, dropout_p, training=dropout_training)
 
-        d2 = tf.layers.conv2d_transpose(d3_dropout, 128, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d2 = tf.layers.conv2d_transpose(d3_bn, 128, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d2_bn = tf.layers.batch_normalization(d2, training=dropout_training)
-        d2_dropout = tf.layers.dropout(d2_bn, dropout_p, training=dropout_training)
 
-        d1 = tf.layers.conv2d_transpose(d2_dropout, 64, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d1 = tf.layers.conv2d_transpose(d2_bn, 64, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d1_bn = tf.layers.batch_normalization(d1, training=training)
-        d1_dropout = tf.layers.dropout(d1_bn, dropout_p, training=dropout_training)
 
-        img = tf.layers.conv2d(d1_dropout, 3, (1, 1), strides=(1,1), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.tanh)
+        img = tf.layers.conv2d(d1_bn, 3, (1, 1), strides=(1,1), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.tanh)
 
     return img
 
