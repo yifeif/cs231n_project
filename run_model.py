@@ -206,14 +206,14 @@ if __name__ == '__main__':
       '--screenshots_dir', type=str, default=None, required=True,
       help='Path to the screenshots directory containing data images.')
   parser.add_argument(
-      '--train_dir', type=str, default='/data/annarev/checkpoints', required=False,
+      '--train_dir', type=str, default=None, required=True,
       help='Path to the chkpt files.')
   parser.add_argument(
       '--data_split_dir', type=str, default=None, required=False,
       help='Path to directory that contains test_data.txt, '
            'val_data.txt and train_data.txt files.')
   parser.add_argument(
-      '--sample_images_dir', type=str, default='/data/annarev/output_images', required=False,
+      '--sample_images_dir', type=str, default='/tmp/output_images', required=False,
       help='Directory to store output images at.')
 
   FLAGS, _ = parser.parse_known_args()
