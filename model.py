@@ -247,28 +247,33 @@ def run_a_gan(sess, edges_batch, images_batch, num_examples, show_every=250, pri
     G_train_step = G_solver.minimize(G_loss, var_list=G_vars)
 
     sess.run(tf.global_variables_initializer())
-    #tf.train.start_queue_runners(sess=sess)
+
+    coord = tf.train.Coordinator()
+    threads = tf.train.start_queue_runners(coord=coord)
 
     # Run
     # compute the number of iterations we need
     max_iter = int(num_examples*num_epoch/batch_size)
-    for it in range(max_iter):
-        print('Iteration %d' % it)
-        # every show often, show a sample result
-        if it % show_every == 0:
-          samples = sess.run(y) #G_sample)
-          #fig = show_images(samples[:16])
-          #plt.show()
-          print()
-        # run a batch of data through the network
-        # x, e = sample_from_data()
-        _, D_loss_curr = sess.run([D_train_step, D_loss])
-        _, G_loss_curr = sess.run([G_train_step, G_loss])
+    with coord.stop_on_exception():
+      for it in range(max_iter):
+          print('Iteration %d' % it)
+          # every show often, show a sample result
+          if it % show_every == 0:
+            samples = sess.run(y) #G_sample)
+            #fig = show_images(samples[:16])
+            #plt.show()
+            print()
+          # run a batch of data through the network
+          # x, e = sample_from_data()
+          _, D_loss_curr = sess.run([D_train_step, D_loss])
+          _, G_loss_curr = sess.run([G_train_step, G_loss])
 
-        # print loss every so often.
-        # We want to make sure D_loss doesn't go to 0
-        if it % print_every == 0:
-            print('Iter: {}, D: {:.4}, G:{:.4}'.format(it,D_loss_curr,G_loss_curr))
+          # print loss every so often.
+          # We want to make sure D_loss doesn't go to 0
+          if it % print_every == 0:
+              print('Iter: {}, D: {:.4}, G:{:.4}'.format(it,D_loss_curr,G_loss_curr))
+      coord.request_stop()
+      coord.join(threads)
     print('Final images')
     samples = sess.run(y)
 
