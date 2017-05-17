@@ -195,7 +195,7 @@ def get_solvers(learning_rate=1e-3, beta1=0.5):
 
 
 # a giant helper function
-def run_a_gan(sess, edges_batch, images_batch, show_every=250, print_every=50, num_epoch=10):
+def run_a_gan(sess, edges_batch, images_batch, num_examples, show_every=250, print_every=50, num_epoch=10):
     """Train a GAN for a certain number of epochs.
 
     Inputs:
@@ -212,6 +212,7 @@ def run_a_gan(sess, edges_batch, images_batch, show_every=250, print_every=50, n
     Returns:
       Nothing
     """
+    batch_size = int(edges_batch.shape[0])
     # Create model
     # placeholder for images from the training dataset
     # x = tf.placeholder(tf.float32, [None, H, W, C])
@@ -245,13 +246,11 @@ def run_a_gan(sess, edges_batch, images_batch, show_every=250, print_every=50, n
     D_train_step = D_solver.minimize(D_loss, var_list=D_vars)
     G_train_step = G_solver.minimize(G_loss, var_list=G_vars)
 
-    #sess.run(tf.global_variables_initializer())
+    sess.run(tf.global_variables_initializer())
     #tf.train.start_queue_runners(sess=sess)
 
     # Run
     # compute the number of iterations we need
-    num_examples = 90000
-    batch_size = 16
     max_iter = int(num_examples*num_epoch/batch_size)
     for it in range(max_iter):
         print('Iteration %d' % it)
@@ -271,7 +270,7 @@ def run_a_gan(sess, edges_batch, images_batch, show_every=250, print_every=50, n
         if it % print_every == 0:
             print('Iter: {}, D: {:.4}, G:{:.4}'.format(it,D_loss_curr,G_loss_curr))
     print('Final images')
-    samples = sess.run(G_sample)
+    samples = sess.run(y)
 
     fig = show_images(samples[:16])
     plt.show()

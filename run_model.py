@@ -18,7 +18,6 @@ def main():
       data_loader.input(FLAGS.screenshots_dir, train_models_file, batch_size=16))
 
   with tf.Session() as sess:
-    sess.run(tf.global_variables_initializer())
     tf.train.start_queue_runners(sess=sess)
     model.run_a_gan(sess, edges_batch, images_batch, num_epoch=num_epoch)
 
