@@ -29,7 +29,7 @@ def leaky_relu(x, alpha=0.2):
     return tf.maximum(alpha*x, x)
 
 
-def discriminator(x):
+def discriminator(x, training=True):
     """Compute discriminator score for a batch of input images.
     256 × 256 discriminator:
     C64-C128-C256-C512-C512-C512
@@ -48,21 +48,21 @@ def discriminator(x):
         a1 = tf.layers.conv2d(x, 64, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         # layer_2: [batch, 128, 128, 128] => [batch, 64, 64, 128]
         a2 = tf.layers.conv2d(a1, 128, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
-        a2_bn = tf.layers.batch_normalization(a2)
+        a2_bn = tf.layers.batch_normalization(a2, training=training)
         # layer_3: [batch, 64, 64, 128] => [batch, 32, 32, 256]
         a3 = tf.layers.conv2d(a2_bn, 256, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
-        a3_bn = tf.layers.batch_normalization(a3)
+        a3_bn = tf.layers.batch_normalization(a3, training=training)
         # layer_4: [batch, 32, 32, 256] => [batch, 31, 31, 512]
         a4 = tf.layers.conv2d(a3_bn, 512, (4,4), strides=(1,1), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
-        a4_bn = tf.layers.batch_normalization(a4)
+        a4_bn = tf.layers.batch_normalization(a4, training=training)
 
         # layer_5: [batch, 32, 32, 512] => [batch, 30, 30, 512]
         a5 = tf.layers.conv2d(a4_bn, 512, (4,4), strides=(1,1), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
-        a5_bn = tf.layers.batch_normalization(a5)
+        a5_bn = tf.layers.batch_normalization(a5, training=training)
 
         # layer_6: [batch, 32, 32, 512] => [batch, 29, 29, 512]
         a6 = tf.layers.conv2d(a5_bn, 512, (4,4), strides=(1,1), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
-        a6_bn = tf.layers.batch_normalization(a6)
+        a6_bn = tf.layers.batch_normalization(a6, training=training)
 
         #logits = tf.layers.conv2d(a6_bn, 1, (29,29), strides=(1,1), kernel_initializer=tf.random_normal_initializer(0, 0.02))
         logits = tf.layers.conv2d(a6_bn, 1, (21,21), strides=(1,1), kernel_initializer=tf.random_normal_initializer(0, 0.02))
@@ -70,7 +70,7 @@ def discriminator(x):
     return logits
 
        
-def generator(d):
+def generator(d, training=True, dropout_training=True):
     """Generate images from a random noise vector.
 
 	The encoder-decoder architecture consists of:
@@ -104,45 +104,44 @@ def generator(d):
         a1 = tf.layers.conv2d(d, 64, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         # layer_2: [batch, 128, 128, 128] => [batch, 64, 64, 128]
         a2 = tf.layers.conv2d(a1, 128, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
-        a2_bn = tf.layers.batch_normalization(a2)
+        a2_bn = tf.layers.batch_normalization(a2, training=training)
         # layer_3: [batch, 64, 64, 128] => [batch, 32, 32, 256]
         a3 = tf.layers.conv2d(a2_bn, 256, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
-        a3_bn = tf.layers.batch_normalization(a3)
+        a3_bn = tf.layers.batch_normalization(a3, training=training)
         # layer_4: [batch, 32, 32, 256] => [batch, 16, 16, 512]
         a4 = tf.layers.conv2d(a3_bn, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
-        a4_bn = tf.layers.batch_normalization(a4)
+        a4_bn = tf.layers.batch_normalization(a4, training=training)
         # layer_5: [batch, 16, 16, 512] => [batch, 8, 8, 512]
         a5 = tf.layers.conv2d(a4_bn, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
-        a5_bn = tf.layers.batch_normalization(a5)
+        a5_bn = tf.layers.batch_normalization(a5, training=training)
         # layer_6: [batch, 8, 8, 512] => [batch, 4, 4, 512]
         a6 = tf.layers.conv2d(a5_bn, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
-        a6_bn = tf.layers.batch_normalization(a6)
+        a6_bn = tf.layers.batch_normalization(a6, training=training)
 
         # Decoder
-        # to 8x8
         d6 = tf.layers.conv2d_transpose(a6_bn, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d6_bn = tf.layers.batch_normalization(d6)
-        d6_dropout = tf.layers.dropout(d6_bn, dropout_p)
+        d6_bn = tf.layers.batch_normalization(d6, training=training)
+        d6_dropout = tf.layers.dropout(d6_bn, dropout_p, training=dropout_training)
 
         d5 = tf.layers.conv2d_transpose(d6_dropout, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d5_bn = tf.layers.batch_normalization(d5)
-        d5_dropout = tf.layers.dropout(d5_bn, dropout_p)
+        d5_bn = tf.layers.batch_normalization(d5, training=training)
+        d5_dropout = tf.layers.dropout(d5_bn, dropout_p, training=dropout_training)
 
         d4 = tf.layers.conv2d_transpose(d5_dropout, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d4_bn = tf.layers.batch_normalization(d4)
-        d4_dropout = tf.layers.dropout(d4_bn, dropout_p)
+        d4_bn = tf.layers.batch_normalization(d4, training=training)
+        d4_dropout = tf.layers.dropout(d4_bn, dropout_p, training=dropout_training)
 
         d3 = tf.layers.conv2d_transpose(d4_dropout, 256, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d3_bn = tf.layers.batch_normalization(d3)
-        d3_dropout = tf.layers.dropout(d3_bn, dropout_p)
+        d3_bn = tf.layers.batch_normalization(d3, training=training)
+        d3_dropout = tf.layers.dropout(d3_bn, dropout_p, training=dropout_training)
 
         d2 = tf.layers.conv2d_transpose(d3_dropout, 128, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d2_bn = tf.layers.batch_normalization(d2)
-        d2_dropout = tf.layers.dropout(d2_bn, dropout_p)
+        d2_bn = tf.layers.batch_normalization(d2, training=dropout_training)
+        d2_dropout = tf.layers.dropout(d2_bn, dropout_p, training=dropout_training)
 
         d1 = tf.layers.conv2d_transpose(d2_dropout, 64, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d1_bn = tf.layers.batch_normalization(d1)
-        d1_dropout = tf.layers.dropout(d1_bn, dropout_p)
+        d1_bn = tf.layers.batch_normalization(d1, training=training)
+        d1_dropout = tf.layers.dropout(d1_bn, dropout_p, training=dropout_training)
 
         img = tf.layers.conv2d(d1_dropout, 3, (1, 1), strides=(1,1), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.tanh)
 
@@ -241,12 +240,13 @@ def run_a_gan(sess, edges_batch, images_batch, show_every=250, print_every=50, n
     D_loss, G_loss = gan_loss(logits_real, logits_fake, x, y)
 
     # setup training steps
-    D_train_step = D_solver.minimize(D_loss, var_list=D_vars)
-    G_train_step = G_solver.minimize(G_loss, var_list=G_vars)
     D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'discriminator')
     G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'generator')
+    D_train_step = D_solver.minimize(D_loss, var_list=D_vars)
+    G_train_step = G_solver.minimize(G_loss, var_list=G_vars)
 
-
+    #sess.run(tf.global_variables_initializer())
+    #tf.train.start_queue_runners(sess=sess)
 
     # Run
     # compute the number of iterations we need
@@ -254,6 +254,7 @@ def run_a_gan(sess, edges_batch, images_batch, show_every=250, print_every=50, n
     batch_size = 16
     max_iter = int(num_examples*num_epoch/batch_size)
     for it in range(max_iter):
+        print('Iteration %d' % it)
         # every show often, show a sample result
         if it % show_every == 0:
           samples = sess.run(y) #G_sample)
