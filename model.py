@@ -171,10 +171,10 @@ def gan_loss(logits_real, logits_fake, x, y):
     D_loss += tf.losses.sigmoid_cross_entropy(tf.zeros_like(logits_fake), logits_fake)
 
     G_loss = tf.losses.sigmoid_cross_entropy(tf.ones_like(logits_fake), logits_fake)
-    G_loss += tf.reduce_mean(tf.abs(x - y), axis=[1,2,3])
+    G_loss += tf.reduce_mean(tf.abs(x - y))
 
-    D_loss = tf.reduce_mean(D_loss)
-    G_loss = tf.reduce_mean(G_loss)
+    #D_loss = tf.reduce_mean(D_loss)
+    #G_loss = tf.reduce_mean(G_loss)
     return D_loss, G_loss
 
 
