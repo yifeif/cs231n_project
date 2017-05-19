@@ -42,8 +42,9 @@ class DataLoaderTest(unittest.TestCase):
       self.assertEqual((1, 256, 256, 1), edges_batch_result.shape)
       self.assertEqual((1, 256, 256, 3), images_batch_result.shape)
       self.assertTrue(np.allclose(edges.reshape((256, 256, 1)),
-                                  edges_batch_result[0]))
-      self.assertTrue(np.allclose(image, images_batch_result[0]))
+                                  (edges_batch_result[0] + 1) / 2))
+      self.assertTrue(np.allclose(image,
+                                  (images_batch_result[0] + 1) * 128))
 
 
 if __name__ == '__main__':

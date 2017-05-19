@@ -9,14 +9,10 @@ from scipy.misc import imsave
 import tensorflow as tf
 
 
-def save_images(samples, sample_images_dir, label):
-  if sample_images_dir:
-    iteration_dir = os.path.join(sample_images_dir, label)
-    if not os.path.isdir(iteration_dir):
-      os.makedirs(iteration_dir)
-    for sample_index in range(samples.shape[0]):
-      imsave(os.path.join(iteration_dir, 'output-%d.png' % sample_index),
-             (samples[sample_index] + 1) * (128.0))
+def save_images(d, x, samples, label):
+  tf.summary.image('Edges_%s' % label, d)
+  tf.summary.image('Expected_%s' % label, x)
+  tf.summary.image('Output_%s' % label, samples)
 
 
 # a giant helper function
@@ -49,39 +45,35 @@ def run_a_gan(sess, data_split_dir, num_examples,
 
   val_models_file = os.path.join(data_split_dir, 'val_data.txt')
   vedges_batch, vimages_batch = (
-      data_loader.input(FLAGS.screenshots_dir, val_models_file, batch_size=16))
+      data_loader.input(FLAGS.screenshots_dir, val_models_file, batch_size=8))
 
   edges_batch_placeholder = tf.placeholder(tf.float32, (None, 256, 256, 1))
   images_batch_placeholder = tf.placeholder(tf.float32, (None, 256, 256, 3))
 
-  sample_images_dir = os.path.join(FLAGS.sample_images_dir, "train")
-  vsample_images_dir = os.path.join(FLAGS.sample_images_dir, "validation")
   # Create model
-  # placeholder for images from the training dataset
-  # x = tf.placeholder(tf.float32, [None, H, W, C])
   x = images_batch_placeholder
   # edge image
-  # d = tf.placeholder(tf.float32, [None, H, W, 1])
   d = edges_batch_placeholder
   # generated images
   y = generator(d, training)
 
   with tf.variable_scope("") as scope:
       #scale images to be -1 to 1
-      logits_real = discriminator(x, training)
+      logits_real = discriminator(tf.concat([d, x], axis=3), training)
       # Re-use discriminator weights on new inputs
       scope.reuse_variables()
-      logits_fake = discriminator(y, training)
+      logits_fake = discriminator(tf.concat([d, y], axis=3), training)
 
   # Get the list of variables for the discriminator and generator
   D_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'discriminator')
-  G_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'generator') 
+  G_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'generator')
 
   # get our solver
-  D_solver, G_solver = get_solvers()
+  D_solver, G_solver = get_solvers(learning_rate=2e-4)
 
   # get our loss
-  D_loss, G_loss = gan_loss(logits_real, logits_fake, x, y)
+  D_loss, G_loss = gan_loss(
+      logits_real, logits_fake, x, y, lambda_param=100.0)
   tf.summary.scalar('D_loss', D_loss)
   tf.summary.scalar('G_loss', G_loss)
 
@@ -91,8 +83,10 @@ def run_a_gan(sess, data_split_dir, num_examples,
   # setup training steps
   D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'discriminator')
   G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'generator')
-  D_train_step = D_solver.minimize(D_loss, var_list=D_vars)
-  G_train_step = G_solver.minimize(G_loss, var_list=G_vars, global_step=global_step)
+  with tf.control_dependencies(D_extra_step):
+    D_train_step = D_solver.minimize(D_loss, var_list=D_vars)
+  with tf.control_dependencies(G_extra_step):
+    G_train_step = G_solver.minimize(G_loss, var_list=G_vars, global_step=global_step)
 
   saver = tf.train.Saver()
   ckpt = tf.train.get_checkpoint_state(FLAGS.train_dir)
@@ -105,16 +99,6 @@ def run_a_gan(sess, data_split_dir, num_examples,
       sess.run(tf.global_variables_initializer())
       print('Num params: %d' % sum(v.get_shape().num_elements() for v in tf.trainable_variables()))
 
-
-  sample_images_dir = os.path.join(FLAGS.sample_images_dir, "train")
-  vsample_images_dir = os.path.join(FLAGS.sample_images_dir, "validation")
-  #run_model(y, D_train_step, G_train_step, D_loss, G_loss, global_step,
-  #          num_examples, num_epoch, 4, summary_op, sample_images_dir, is_training=True)
-
-  #run_model(y, D_train_step, G_train_step, D_loss, G_loss, global_step,
-  #          num_examples, num_epoch, 500, summary_op, sample_images_dir, is_training=True)
-
-
   coord = tf.train.Coordinator()
   threads = tf.train.start_queue_runners(coord=coord)
 
@@ -124,27 +108,22 @@ def run_a_gan(sess, data_split_dir, num_examples,
   with coord.stop_on_exception():
     for it in range(max_iter):
         edges_batch_curr, images_batch_curr = sess.run([edges_batch, images_batch])
-        #print('Iteration %d' % it)
-        # every show often, show a sample result
+        # Every so often, add training and validation images to summary
         if it % show_every == 0:
           samples = sess.run(
               y, feed_dict={training: False,
                             edges_batch_placeholder: edges_batch_curr,
-                            images_batch_placeholder: images_batch_curr}) #G_sample)
-          save_images(samples, sample_images_dir, str(it))
+                            images_batch_placeholder: images_batch_curr})
+          save_images(edges_batch_curr, images_batch_curr, samples, 'train')
           if it >= 100:
             vedges_batch_curr, vimages_batch_curr = sess.run([vedges_batch, vimages_batch])
             val_G_loss, val_D_loss, vsamples = sess.run(
                 [G_loss, D_loss, y], feed_dict={training: False,
                             edges_batch_placeholder: vedges_batch_curr,
-                            images_batch_placeholder: vimages_batch_curr}) #G_sample)
-            save_images(vsamples, vsample_images_dir, str(it))
-
-          #fig = show_images(samples[:16])
-          #plt.show()
-          print()
+                            images_batch_placeholder: vimages_batch_curr})
+            save_images(
+                vedges_batch_curr, vimages_batch_curr, vsamples, 'validation')
         # run a batch of data through the network
-        # x, e = sample_from_data()
         _, D_loss_curr = sess.run([D_train_step, D_loss],
                             feed_dict={training: True,
                             edges_batch_placeholder: edges_batch_curr,
@@ -176,15 +155,13 @@ def run_a_gan(sess, data_split_dir, num_examples,
 
   coord.request_stop()
   coord.join(threads)
-  print('Final images')
-  samples = sess.run(y, feed_dict={training: False,
-                       edges_batch_placeholder: edges_batch_curr,
-                       images_batch_placeholder: images_batch_curr}) #G_sample)
+  samples = sess.run(
+      y,
+      feed_dict={training: False,
+                 edges_batch_placeholder: edges_batch_curr,
+                 images_batch_placeholder: images_batch_curr})
+  save_images(edges_batch_curr, images_batch_curr, samples, 'final')
 
-  save_images(samples, sample_images_dir, str(it))
-
-  #fig = show_images(samples[:16])
-  #plt.show()
 
 def main():
   data_split_dir = FLAGS.data_split_dir
@@ -195,7 +172,7 @@ def main():
 
   with tf.Session() as sess:
     run_a_gan(
-        sess, data_split_dir, num_examples=90000, num_epoch=num_epoch)
+        sess, data_split_dir, num_examples=95170, num_epoch=num_epoch)
 
 
 if __name__ == '__main__':
@@ -206,15 +183,12 @@ if __name__ == '__main__':
       '--screenshots_dir', type=str, default=None, required=True,
       help='Path to the screenshots directory containing data images.')
   parser.add_argument(
-      '--train_dir', type=str, default=None, required=True,
+      '--train_dir', type=str, default='/tmp/checkpoints', required=False,
       help='Path to the chkpt files.')
   parser.add_argument(
       '--data_split_dir', type=str, default=None, required=False,
       help='Path to directory that contains test_data.txt, '
            'val_data.txt and train_data.txt files.')
-  parser.add_argument(
-      '--sample_images_dir', type=str, default='/tmp/output_images', required=False,
-      help='Directory to store output images at.')
 
   FLAGS, _ = parser.parse_known_args()
   main()

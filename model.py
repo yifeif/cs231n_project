@@ -125,35 +125,42 @@ def generator(d, training=True, dropout_training=True):
         d8 = tf.layers.conv2d_transpose(a8_bn, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d8_bn = tf.layers.batch_normalization(d8, training=training)
         d8_dropout = tf.layers.dropout(d8_bn, dropout_p, training=dropout_training)
+        d8_unet = tf.concat([d8_dropout, a7_bn], 3)
 
-        d7 = tf.layers.conv2d_transpose(d8_dropout, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d7 = tf.layers.conv2d_transpose(d8_unet, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d7_bn = tf.layers.batch_normalization(d7, training=training)
         d7_dropout = tf.layers.dropout(d7_bn, dropout_p, training=dropout_training)
+        d7_unet = tf.concat([d7_dropout, a6_bn], 3)
 
-        d6 = tf.layers.conv2d_transpose(d7_dropout, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d6 = tf.layers.conv2d_transpose(d7_unet, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d6_bn = tf.layers.batch_normalization(d6, training=training)
         d6_dropout = tf.layers.dropout(d6_bn, dropout_p, training=dropout_training)
+        d6_unet = tf.concat([d6_dropout, a5_bn], 3)
 
-        d5 = tf.layers.conv2d_transpose(d6_dropout, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d5 = tf.layers.conv2d_transpose(d6_unet, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d5_bn = tf.layers.batch_normalization(d5, training=training)
+        d5_unet = tf.concat([d5_bn, a4_bn], 3)
 
-        d4 = tf.layers.conv2d_transpose(d5_bn, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d4 = tf.layers.conv2d_transpose(d5_unet, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d4_bn = tf.layers.batch_normalization(d4, training=training)
+        d4_unet = tf.concat([d4_bn, a3_bn], 3)
 
-        d3 = tf.layers.conv2d_transpose(d4_bn, 256, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d3 = tf.layers.conv2d_transpose(d4_unet, 256, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d3_bn = tf.layers.batch_normalization(d3, training=training)
+        d3_unet = tf.concat([d3_bn, a2_bn], 3)
 
-        d2 = tf.layers.conv2d_transpose(d3_bn, 128, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d2 = tf.layers.conv2d_transpose(d3_unet, 128, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d2_bn = tf.layers.batch_normalization(d2, training=dropout_training)
+        d2_unet = tf.concat([d2_bn, a1], 3)
 
-        d1 = tf.layers.conv2d_transpose(d2_bn, 64, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+        d1 = tf.layers.conv2d_transpose(d2_unet, 64, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d1_bn = tf.layers.batch_normalization(d1, training=training)
 
         img = tf.layers.conv2d(d1_bn, 3, (1, 1), strides=(1,1), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.tanh)
 
     return img
 
-def gan_loss(logits_real, logits_fake, x, y):
+def gan_loss(logits_real, logits_fake, x, y, lambda_param):
     """Compute the GAN loss.
 
     Inputs:
@@ -161,20 +168,17 @@ def gan_loss(logits_real, logits_fake, x, y):
         Log probability that the image is real for each real image
     - logits_fake: Tensor, shape[batch_size, 1], output of discriminator
         Log probability that the image is real for each fake image
+    - lambda_param: multiplier for L1 loss
 
     Returns:
     - D_loss: discriminator loss scalar
     - G_loss: generator loss scalar
     """
-    # TODO: compute D_loss and G_loss
     D_loss = tf.losses.sigmoid_cross_entropy(tf.ones_like(logits_real), logits_real)
     D_loss += tf.losses.sigmoid_cross_entropy(tf.zeros_like(logits_fake), logits_fake)
 
     G_loss = tf.losses.sigmoid_cross_entropy(tf.ones_like(logits_fake), logits_fake)
-    G_loss += tf.reduce_mean(tf.abs(x - y))
-
-    #D_loss = tf.reduce_mean(D_loss)
-    #G_loss = tf.reduce_mean(G_loss)
+    G_loss += lambda_param*tf.reduce_mean(tf.abs(x - y))
     return D_loss, G_loss
 
 
