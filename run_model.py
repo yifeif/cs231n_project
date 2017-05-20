@@ -35,7 +35,10 @@ def run_a_gan(sess, data_split_dir, num_examples,
     Nothing
   """
   global_step = tf.contrib.framework.get_or_create_global_step()
-  summary_writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
+  summary_writer = tf.summary.FileWriter(
+      os.path.join(FLAGS.train_dir, 'train'), sess.graph)
+  val_summary_writer = tf.summary.FileWriter(
+      os.path.join(FLAGS.train_dir, 'validation'))
   training = tf.placeholder(tf.bool)
 
   train_models_file = os.path.join(data_split_dir, 'train_data.txt')
@@ -74,11 +77,23 @@ def run_a_gan(sess, data_split_dir, num_examples,
   # get our loss
   D_loss, G_loss = gan_loss(
       logits_real, logits_fake, x, y, lambda_param=100.0)
-  tf.summary.scalar('D_loss', D_loss)
-  tf.summary.scalar('G_loss', G_loss)
 
-  summaries = tf.get_collection(tf.GraphKeys.SUMMARIES)
+  with tf.variable_scope("train_summaries") as scope:
+    tf.summary.scalar('D_loss', D_loss)
+    tf.summary.scalar('G_loss', G_loss)
+  summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, "train_summaries")
   summary_op = tf.summary.merge(summaries)
+
+  with tf.variable_scope("val_summaries") as scope:
+    edges_3_channels = tf.image.grayscale_to_rgb(edges_batch_placeholder)
+    tf.summary.image(
+        'Images',
+        tf.concat([edges_3_channels, images_batch_placeholder, y],
+                  axis=2))
+    tf.summary.scalar('G_loss', G_loss)
+    tf.summary.scalar('D_loss', D_loss)
+  val_summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, "val_summaries")
+  val_summary_op = tf.summary.merge(val_summaries)
 
   # setup training steps
   D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'discriminator')
@@ -110,19 +125,14 @@ def run_a_gan(sess, data_split_dir, num_examples,
         edges_batch_curr, images_batch_curr = sess.run([edges_batch, images_batch])
         # Every so often, add training and validation images to summary
         if it % show_every == 0:
-          samples = sess.run(
-              y, feed_dict={training: False,
-                            edges_batch_placeholder: edges_batch_curr,
-                            images_batch_placeholder: images_batch_curr})
-          save_images(edges_batch_curr, images_batch_curr, samples, 'train')
-          if it >= 100:
             vedges_batch_curr, vimages_batch_curr = sess.run([vedges_batch, vimages_batch])
-            val_G_loss, val_D_loss, vsamples = sess.run(
-                [G_loss, D_loss, y], feed_dict={training: False,
-                            edges_batch_placeholder: vedges_batch_curr,
-                            images_batch_placeholder: vimages_batch_curr})
-            save_images(
-                vedges_batch_curr, vimages_batch_curr, vsamples, 'validation')
+            val_summary_str, val_G_loss = sess.run(
+                [val_summary_op, G_loss], feed_dict={training: False,
+                                           edges_batch_placeholder: vedges_batch_curr,
+                                           images_batch_placeholder: vimages_batch_curr})
+            val_summary_writer.add_summary(val_summary_str, it)
+            print('Validation loss %f:' % val_G_loss)
+            print('Stored validation images.')
         # run a batch of data through the network
         _, D_loss_curr = sess.run([D_train_step, D_loss],
                             feed_dict={training: True,
@@ -155,12 +165,6 @@ def run_a_gan(sess, data_split_dir, num_examples,
 
   coord.request_stop()
   coord.join(threads)
-  samples = sess.run(
-      y,
-      feed_dict={training: False,
-                 edges_batch_placeholder: edges_batch_curr,
-                 images_batch_placeholder: images_batch_curr})
-  save_images(edges_batch_curr, images_batch_curr, samples, 'final')
 
 
 def main():
