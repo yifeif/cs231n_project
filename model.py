@@ -150,7 +150,7 @@ def generator(d, training=True, dropout_training=True):
         d3_unet = tf.concat([d3_bn, a2_bn], 3)
 
         d2 = tf.layers.conv2d_transpose(d3_unet, 128, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d2_bn = tf.layers.batch_normalization(d2, training=dropout_training)
+        d2_bn = tf.layers.batch_normalization(d2, training=training)
         d2_unet = tf.concat([d2_bn, a1], 3)
 
         d1 = tf.layers.conv2d_transpose(d2_unet, 64, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
