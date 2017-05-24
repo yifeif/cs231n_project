@@ -67,7 +67,7 @@ def discriminator(x, training=True):
     return logits
 
        
-def generator(d, training=True, dropout_training=True):
+def generator(d, training=True, dropout_training=True, decoder='default'):
     """Generate images from a random noise vector.
 
 	The encoder-decoder architecture consists of:
@@ -122,39 +122,86 @@ def generator(d, training=True, dropout_training=True):
         a8_bn = tf.layers.batch_normalization(a8, training=training)
 
         # Decoder
-        d8 = tf.layers.conv2d_transpose(a8_bn, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d8_bn = tf.layers.batch_normalization(d8, training=training)
-        d8_dropout = tf.layers.dropout(d8_bn, dropout_p, training=dropout_training)
-        d8_unet = tf.concat([d8_dropout, a7_bn], 3)
+        if decoder == 'default':
+          d8 = tf.layers.conv2d_transpose(a8_bn, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d8_bn = tf.layers.batch_normalization(d8, training=training)
+          d8_dropout = tf.layers.dropout(d8_bn, dropout_p, training=dropout_training)
+          d8_unet = tf.concat([d8_dropout, a7_bn], 3)
 
-        d7 = tf.layers.conv2d_transpose(d8_unet, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d7_bn = tf.layers.batch_normalization(d7, training=training)
-        d7_dropout = tf.layers.dropout(d7_bn, dropout_p, training=dropout_training)
-        d7_unet = tf.concat([d7_dropout, a6_bn], 3)
+          d7 = tf.layers.conv2d_transpose(d8_unet, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d7_bn = tf.layers.batch_normalization(d7, training=training)
+          d7_dropout = tf.layers.dropout(d7_bn, dropout_p, training=dropout_training)
+          d7_unet = tf.concat([d7_dropout, a6_bn], 3)
 
-        d6 = tf.layers.conv2d_transpose(d7_unet, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d6_bn = tf.layers.batch_normalization(d6, training=training)
-        d6_dropout = tf.layers.dropout(d6_bn, dropout_p, training=dropout_training)
-        d6_unet = tf.concat([d6_dropout, a5_bn], 3)
+          d6 = tf.layers.conv2d_transpose(d7_unet, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d6_bn = tf.layers.batch_normalization(d6, training=training)
+          d6_dropout = tf.layers.dropout(d6_bn, dropout_p, training=dropout_training)
+          d6_unet = tf.concat([d6_dropout, a5_bn], 3)
 
-        d5 = tf.layers.conv2d_transpose(d6_unet, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d5_bn = tf.layers.batch_normalization(d5, training=training)
-        d5_unet = tf.concat([d5_bn, a4_bn], 3)
+          d5 = tf.layers.conv2d_transpose(d6_unet, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d5_bn = tf.layers.batch_normalization(d5, training=training)
+          d5_unet = tf.concat([d5_bn, a4_bn], 3)
 
-        d4 = tf.layers.conv2d_transpose(d5_unet, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d4_bn = tf.layers.batch_normalization(d4, training=training)
-        d4_unet = tf.concat([d4_bn, a3_bn], 3)
+          d4 = tf.layers.conv2d_transpose(d5_unet, 512, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d4_bn = tf.layers.batch_normalization(d4, training=training)
+          d4_unet = tf.concat([d4_bn, a3_bn], 3)
 
-        d3 = tf.layers.conv2d_transpose(d4_unet, 256, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d3_bn = tf.layers.batch_normalization(d3, training=training)
-        d3_unet = tf.concat([d3_bn, a2_bn], 3)
+          d3 = tf.layers.conv2d_transpose(d4_unet, 256, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d3_bn = tf.layers.batch_normalization(d3, training=training)
+          d3_unet = tf.concat([d3_bn, a2_bn], 3)
 
-        d2 = tf.layers.conv2d_transpose(d3_unet, 128, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d2_bn = tf.layers.batch_normalization(d2, training=training)
-        d2_unet = tf.concat([d2_bn, a1], 3)
+          d2 = tf.layers.conv2d_transpose(d3_unet, 128, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d2_bn = tf.layers.batch_normalization(d2, training=training)
+          d2_unet = tf.concat([d2_bn, a1], 3)
 
-        d1 = tf.layers.conv2d_transpose(d2_unet, 64, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d1_bn = tf.layers.batch_normalization(d1, training=training)
+          d1 = tf.layers.conv2d_transpose(d2_unet, 64, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d1_bn = tf.layers.batch_normalization(d1, training=training)
+        elif decoder == 'resize_conv':
+          a8_bn_resize = tf.image.resize_images(a8_bn, [2, 2], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+          d8 = tf.layers.conv2d(a8_bn_resize, 512, (4,4), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d8_bn = tf.layers.batch_normalization(d8, training=training)
+          d8_dropout = tf.layers.dropout(d8_bn, dropout_p, training=dropout_training)
+          d8_unet = tf.concat([d8_dropout, a7_bn], 3)
+
+          d8_unet_resize = tf.image.resize_images(d8_unet, [4, 4], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+          d7 = tf.layers.conv2d(d8_unet_resize, 512, (4,4), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d7_bn = tf.layers.batch_normalization(d7, training=training)
+          d7_dropout = tf.layers.dropout(d7_bn, dropout_p, training=dropout_training)
+          d7_unet = tf.concat([d7_dropout, a6_bn], 3)
+
+
+          d7_unet_resize = tf.image.resize_images(d7_unet, [8, 8], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+          d6 = tf.layers.conv2d(d7_unet_resize, 512, (8,8), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d6_bn = tf.layers.batch_normalization(d6, training=training)
+          d6_dropout = tf.layers.dropout(d6_bn, dropout_p, training=dropout_training)
+          d6_unet = tf.concat([d6_dropout, a5_bn], 3)
+
+          d6_unet_resize = tf.image.resize_images(d6_unet, [16, 16], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+          d5 = tf.layers.conv2d(d6_unet_resize, 512, (4,4), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d5_bn = tf.layers.batch_normalization(d5, training=training)
+          d5_unet = tf.concat([d5_bn, a4_bn], 3)
+
+
+          d5_unet_resize = tf.image.resize_images(d5_unet, [32, 32], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+          d4 = tf.layers.conv2d(d5_unet_resize, 512, (4,4), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d4_bn = tf.layers.batch_normalization(d4, training=training)
+          d4_unet = tf.concat([d4_bn, a3_bn], 3)
+
+          d4_unet_resize = tf.image.resize_images(d4_unet, [64, 64], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+          d3 = tf.layers.conv2d(d4_unet_resize, 256, (4,4), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d3_bn = tf.layers.batch_normalization(d3, training=training)
+          d3_unet = tf.concat([d3_bn, a2_bn], 3)
+
+          d3_unet_resize = tf.image.resize_images(d3_unet, [128, 128], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+          d2 = tf.layers.conv2d(d3_unet_resize, 128, (4,4), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d2_bn = tf.layers.batch_normalization(d2, training=training)
+          d2_unet = tf.concat([d2_bn, a1], 3)
+
+          d2_unet_resize = tf.image.resize_images(d2_unet, [256, 256], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+          d1 = tf.layers.conv2d(d2_unet_resize, 64, (4,4), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d1_bn = tf.layers.batch_normalization(d1, training=training)
+        else:
+          raise ValueError('Invalid encoder type %s' % encoder)
 
         img = tf.layers.conv2d(d1_bn, 3, (1, 1), strides=(1,1), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.tanh)
 

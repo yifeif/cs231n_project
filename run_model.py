@@ -52,7 +52,7 @@ def run_a_gan(sess, data_split_dir, num_examples,
   # edge image
   d = edges_batch_placeholder
   # generated images
-  y = generator(d, training)
+  y = generator(d, training, decoder=FLAGS.decoder)
 
   with tf.variable_scope("") as scope:
       #scale images to be -1 to 1
@@ -187,6 +187,10 @@ if __name__ == '__main__':
       '--data_split_dir', type=str, default=None, required=False,
       help='Path to directory that contains test_data.txt, '
            'val_data.txt and train_data.txt files.')
+  parser.add_argument(
+      '--decoder', type=str, default='default', required=False,
+      help='Types of decoder to use. Default to pix2pix paper. Can choose from'
+           'resize_conv')
 
   FLAGS, _ = parser.parse_known_args()
   main()
