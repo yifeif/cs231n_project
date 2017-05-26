@@ -55,7 +55,7 @@ def get_inputs_for_model_paths(model_paths):
 
 
 def input(
-    screenshots_dir, model_list_file, batch_size=4):
+    screenshots_dir, model_list_file, batch_size=4, image_size=256):
   """Creates an input for ShapeNet screenshots and edge data.
 
   Args:
@@ -63,11 +63,13 @@ def input(
     model_list_file: Path to file that contains a list of paths
       relative to screenshots_dir for the models that we want to load
       either for training, validation or testing.
+    image_size: (Integer) size of images to get. Images are square in
+      size, so WIDTH == HEIGHT == image_size.
 
   Returns:
     A tuple of:
-    - edges_batch: (N, 256, 256, 1) Tensor of input images (edges).
-    - images_batch: (N, 256, 256, 3) Tensor of training output images.
+    - edges_batch: (N, image_size, image_size, 1) Tensor of input images (edges).
+    - images_batch: (N, image_size, image_size, 3) Tensor of training output images.
 
   Raises:
     IOError if model_list_file is not a file.
@@ -84,11 +86,14 @@ def input(
   image = tf.cast(
       tf.image.decode_png(tf.read_file(input_queue[1]), channels=_CHANNELS),
       tf.float32)
-  image.set_shape([_HEIGHT, _WIDTH, 3])
+  image.set_shape([_WIDTH, _HEIGHT, 3])
 
   # Shift and scale so that edges and image are between -1 and 1
   edges = 2*edges - 1
-  image = (image / 128.0) - 1
+  image = ((image * 2) / image_size) - 1
+  if image_size != 256:
+    image = tf.image.resize_images(image, size=(image_size, image_size))
+    edges = tf.image.resize_images(edges, size=(image_size, image_size))
 
   min_after_dequeue = 1000  # size of buffer to sample from
   num_preprocess_threads = 16
@@ -99,5 +104,4 @@ def input(
       capacity=capacity,
       min_after_dequeue=min_after_dequeue)
 
-  tf.summary.image('images', images_batch)
   return edges_batch, images_batch

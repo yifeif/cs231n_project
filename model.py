@@ -9,10 +9,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-H = 256
-W = 256
-C = 3
 dropout_p = 0.5
+
+class ModelSize:
+  MODEL_256 = 0
+  MODEL_64 = 1
 
 
 def leaky_relu(x, alpha=0.2):
@@ -28,11 +29,13 @@ def leaky_relu(x, alpha=0.2):
     return tf.maximum(alpha*x, x)
 
 
-def discriminator(x, training=True):
+def discriminator(x, training=True, model_size=ModelSize.MODEL_256):
     """Compute discriminator score for a batch of input images.
-    256 x 256 discriminator:
     Inputs:
-    - x: TensorFlow Tensor of flattened input images, shape [batch_size, 256, 256, 3]
+    - x: TensorFlow Tensor of flattened input images, shape is either
+      [batch_size, 256, 256, 3] or [batch_size, 64, 64, 3] depending
+      on value of "small_size".
+    - small_size: If true, apply to 64x64 images instead of 256x256.
     
     Returns:
     TensorFlow Tensor with shape [batch_size, 1], containing the score 
@@ -41,11 +44,14 @@ def discriminator(x, training=True):
 
     with tf.variable_scope("discriminator"):
 
-        # layer_1: [batch, 256, 256, 3] => [batch, 128, 128, 64]
-        a1 = tf.layers.conv2d(x, 64, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
-        # layer_2: [batch, 128, 128, 128] => [batch, 64, 64, 128]
-        a2 = tf.layers.conv2d(a1, 128, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
-        a2_bn = tf.layers.batch_normalization(a2, training=training)
+        if model_size == ModelSize.MODEL_256:
+          # layer_1: [batch, 256, 256, 3] => [batch, 128, 128, 64]
+          a1 = tf.layers.conv2d(x, 64, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+          # layer_2: [batch, 128, 128, 128] => [batch, 64, 64, 128]
+          a2 = tf.layers.conv2d(a1, 128, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+          a2_bn = tf.layers.batch_normalization(a2, training=training)
+        else:
+          a2_bn = x
         # layer_3: [batch, 64, 64, 128] => [batch, 32, 32, 256]
         a3 = tf.layers.conv2d(a2_bn, 256, (4,4), strides=(2,2), kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         a3_bn = tf.layers.batch_normalization(a3, training=training)
@@ -67,7 +73,8 @@ def discriminator(x, training=True):
     return logits
 
        
-def generator(d, training=True, dropout_training=True):
+def generator(
+    d, training=True, dropout_training=True, model_size=ModelSize.MODEL_256):
     """Generate images from a random noise vector.
 
 	The encoder-decoder architecture consists of:
@@ -90,6 +97,7 @@ def generator(d, training=True, dropout_training=True):
 	decoder:    
     Inputs:
     - d: TensorFlow Tensor of edge image with shape [batch_size, 256, 256, 1]
+         or [batch_size, 256, 256, 1] depending on value of small_size.
   
     Returns:
     TensorFlow Tensor of generated images, with shape [batch_size, 784].
@@ -97,11 +105,14 @@ def generator(d, training=True, dropout_training=True):
     # Attempting to use uninitialized value generator/batch_normalization_5/beta
     with tf.variable_scope("generator"):
         # Encoder:
-        # layer_1: [batch, 256, 256, 1] => [batch, 128, 128, 64]
-        a1 = tf.layers.conv2d(d, 64, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
-        # layer_2: [batch, 128, 128, 128] => [batch, 64, 64, 128]
-        a2 = tf.layers.conv2d(a1, 128, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
-        a2_bn = tf.layers.batch_normalization(a2, training=training)
+        if model_size == ModelSize.MODEL_256:
+          # layer_1: [batch, 256, 256, 1] => [batch, 128, 128, 64]
+          a1 = tf.layers.conv2d(d, 64, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+          # layer_2: [batch, 128, 128, 128] => [batch, 64, 64, 128]
+          a2 = tf.layers.conv2d(a1, 128, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
+          a2_bn = tf.layers.batch_normalization(a2, training=training)
+        else:
+          a2_bn = d
         # layer_3: [batch, 64, 64, 128] => [batch, 32, 32, 256]
         a3 = tf.layers.conv2d(a2_bn, 256, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=leaky_relu)
         a3_bn = tf.layers.batch_normalization(a3, training=training)
@@ -147,14 +158,17 @@ def generator(d, training=True, dropout_training=True):
 
         d3 = tf.layers.conv2d_transpose(d4_unet, 256, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
         d3_bn = tf.layers.batch_normalization(d3, training=training)
-        d3_unet = tf.concat([d3_bn, a2_bn], 3)
 
-        d2 = tf.layers.conv2d_transpose(d3_unet, 128, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d2_bn = tf.layers.batch_normalization(d2, training=training)
-        d2_unet = tf.concat([d2_bn, a1], 3)
+        if model_size == ModelSize.MODEL_256:
+          d3_unet = tf.concat([d3_bn, a2_bn], 3)
+          d2 = tf.layers.conv2d_transpose(d3_unet, 128, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d2_bn = tf.layers.batch_normalization(d2, training=training)
+          d2_unet = tf.concat([d2_bn, a1], 3)
 
-        d1 = tf.layers.conv2d_transpose(d2_unet, 64, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
-        d1_bn = tf.layers.batch_normalization(d1, training=training)
+          d1 = tf.layers.conv2d_transpose(d2_unet, 64, (4,4), strides=(2,2), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.relu)
+          d1_bn = tf.layers.batch_normalization(d1, training=training)
+        else:
+          d1_bn = d3_bn
 
         img = tf.layers.conv2d(d1_bn, 3, (1, 1), strides=(1,1), padding='same', kernel_initializer=tf.random_normal_initializer(0, 0.02), activation=tf.nn.tanh)
 

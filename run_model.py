@@ -35,31 +35,39 @@ def run_a_gan(sess, data_split_dir, num_examples,
       os.path.join(FLAGS.train_dir, 'validation'))
   training = tf.placeholder(tf.bool)
 
+  image_size = 64 if FLAGS.smaller_model else 256
+  model_size = (
+      ModelSize.MODEL_64 if FLAGS.smaller_model else ModelSize.MODEL_256)
+
   train_models_file = os.path.join(data_split_dir, 'train_data.txt')
   edges_batch, images_batch = (
-      data_loader.input(FLAGS.screenshots_dir, train_models_file, batch_size=4))
+      data_loader.input(FLAGS.screenshots_dir, train_models_file, batch_size=4,
+                        image_size=image_size))
   batch_size = int(edges_batch.shape[0])
 
   val_models_file = os.path.join(data_split_dir, 'val_data.txt')
   vedges_batch, vimages_batch = (
-      data_loader.input(FLAGS.screenshots_dir, val_models_file, batch_size=8))
+      data_loader.input(FLAGS.screenshots_dir, val_models_file, batch_size=8,
+                        image_size=image_size))
 
-  edges_batch_placeholder = tf.placeholder(tf.float32, (None, 256, 256, 1))
-  images_batch_placeholder = tf.placeholder(tf.float32, (None, 256, 256, 3))
+  edges_batch_placeholder = tf.placeholder(tf.float32, (None, image_size, image_size, 1))
+  images_batch_placeholder = tf.placeholder(tf.float32, (None, image_size, image_size, 3))
 
   # Create model
   x = images_batch_placeholder
   # edge image
   d = edges_batch_placeholder
   # generated images
-  y = generator(d, training)
+  y = generator(d, training, model_size=FLAGS.smaller_model)
 
   with tf.variable_scope("") as scope:
       #scale images to be -1 to 1
-      logits_real = discriminator(tf.concat([d, x], axis=3), training)
+      logits_real = discriminator(tf.concat([d, x], axis=3), training,
+                                  model_size=FLAGS.smaller_model)
       # Re-use discriminator weights on new inputs
       scope.reuse_variables()
-      logits_fake = discriminator(tf.concat([d, y], axis=3), training)
+      logits_fake = discriminator(tf.concat([d, y], axis=3), training,
+                                  model_size=FLAGS.smaller_model)
 
   # Get the list of variables for the discriminator and generator
   D_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'discriminator')
@@ -187,6 +195,9 @@ if __name__ == '__main__':
       '--data_split_dir', type=str, default=None, required=False,
       help='Path to directory that contains test_data.txt, '
            'val_data.txt and train_data.txt files.')
+  parser.add_argument(
+      '--smaller_model', type='bool', default=True, required=False,
+      help='Whether to run on smaller images (64x64) or full images (256x256)')
 
   FLAGS, _ = parser.parse_known_args()
   main()
