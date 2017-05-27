@@ -72,6 +72,39 @@ def save_edge(rgb_image_path, sigma=1.2):
   return edge_path
 
 
+def sketch_to_edge(sketch_path):
+  """Create edge input numpy array from sketch path or dir.
+  Create (test_cnt, 256, 256, 1) shape numpy array to be fed 
+  into the model as edges from sketch path or dir. Assume sketches
+  to already be in 256x256 color png. All none white pixels in
+  sketches wil be convert to edge.
+
+  Inputs:
+    sketch path or dir
+
+  Returns:
+    numpy array for model edges input
+  """
+  
+
+  if os.path.isdir(sketch_path):
+    sketch_paths = [os.path.join(dp, f) for dp, dn, filenames in os.walk() for f in filenames if os.path.splitext(sketch_path)[1] == '.png']
+  else:
+    sketch_paths = [sketch_path]
+
+  sketches = []
+  for p in sketch_paths:
+    sketch = Image.open(p).convert('L')
+    sketch = np.array(sketch)
+    if sketch.shape != (256, 256):
+      raise ValueError('Sketch needs to be 256x256, but got: ' + str(image.shape))
+    sketch = sketch < 255
+    sketch = sketch.reshape([256, 256, 1])
+    sketch = sketch.astype(np.float32)*2 - 1
+    sketches.append(sketch)
+  return np.array(sketches)
+
+
 def preprocess_rawrgb(path):
   """Create and save padded input, edge, and padded edge for given input image.
 
