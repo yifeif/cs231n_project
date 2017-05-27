@@ -3,6 +3,7 @@ import argparse
 import logging
 from datetime import datetime
 from data import data_loader
+from preprocess import data_utils
 from model import *
 import os
 from scipy.misc import imsave
@@ -33,6 +34,8 @@ def run_a_gan(sess, data_split_dir, num_examples,
       os.path.join(FLAGS.train_dir, 'train'), sess.graph)
   val_summary_writer = tf.summary.FileWriter(
       os.path.join(FLAGS.train_dir, 'validation'))
+  test_summary_writer = tf.summary.FileWriter(
+      os.path.join(FLAGS.train_dir, 'test'))
   training = tf.placeholder(tf.bool)
 
   train_models_file = os.path.join(data_split_dir, 'train_data.txt')
@@ -89,6 +92,16 @@ def run_a_gan(sess, data_split_dir, num_examples,
   val_summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, "val_summaries")
   val_summary_op = tf.summary.merge(val_summaries)
 
+  with tf.variable_scope("test_summaries") as scope:
+    edges_3_channels = tf.image.grayscale_to_rgb(edges_batch_placeholder)
+    tf.summary.image(
+        'Images',
+        tf.concat([edges_3_channels, y],
+                  axis=2), max_outputs=4)
+  test_summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, "test_summaries")
+  test_summary_op = tf.summary.merge(test_summaries)
+
+
   # setup training steps
   D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'discriminator')
   G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'generator')
@@ -107,6 +120,14 @@ def run_a_gan(sess, data_split_dir, num_examples,
       print("Created model with fresh parameters.")
       sess.run(tf.global_variables_initializer())
       print('Num params: %d' % sum(v.get_shape().num_elements() for v in tf.trainable_variables()))
+
+  if FLAGS.test_sketch:
+    sketch_input = data_utils.sketch_to_edge(FLAGS.test_sketch)
+    test_summary_str, y_curr = sess.run([test_summary_op, y],
+        feed_dict={training: False, edges_batch_placeholder: sketch_input})
+    test_summary_writer.add_summary(test_summary_str, 1)
+    print('Stored test images.')
+    return
 
   coord = tf.train.Coordinator()
   threads = tf.train.start_queue_runners(coord=coord)
@@ -191,6 +212,8 @@ if __name__ == '__main__':
       '--decoder', type=str, default='default', required=False,
       help='Types of decoder to use. Default to pix2pix paper. Can choose from'
            'resize_conv')
-
+  parser.add_argument(
+      '--test_sketch', type=str, default=None, required=False,
+      help='Path to the test image sketch. Must be of size 256x256.')
   FLAGS, _ = parser.parse_known_args()
   main()
