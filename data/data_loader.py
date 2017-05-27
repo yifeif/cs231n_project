@@ -1,6 +1,5 @@
 """Utilities for loading ShapeNet screenshot data."""
 import argparse
-from enum import Enum
 import numpy as np
 import os
 import tensorflow as tf
