@@ -73,6 +73,20 @@ def save_edge(rgb_image_path, sigma=1.2):
 
 
 def sketch_to_edge(sketch_path):
+  """Create edge input numpy array from sketch path or dir.
+  Create (test_cnt, 256, 256, 1) shape numpy array to be fed 
+  into the model as edges from sketch path or dir. Assume sketches
+  to already be in 256x256 color png. All none white pixels in
+  sketches wil be convert to edge.
+
+  Inputs:
+    sketch path or dir
+
+  Returns:
+    numpy array for model edges input
+  """
+  
+
   if os.path.isdir(sketch_path):
     sketch_paths = [os.path.join(dp, f) for dp, dn, filenames in os.walk() for f in filenames if os.path.splitext(sketch_path)[1] == '.png']
   else:
