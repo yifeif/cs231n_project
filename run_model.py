@@ -58,7 +58,7 @@ def run_a_gan(sess, data_split_dir, num_examples,
   # edge image
   d = edges_batch_placeholder
   # generated images
-  y = generator(d, training, model_size=FLAGS.smaller_model)
+  y = generator(d, training, decoder=FLAGS.decoder, model_size=FLAGS.smaller_model)
 
   with tf.variable_scope("") as scope:
       #scale images to be -1 to 1
@@ -198,6 +198,10 @@ if __name__ == '__main__':
   parser.add_argument(
       '--smaller_model', type='bool', default=True, required=False,
       help='Whether to run on smaller images (64x64) or full images (256x256)')
+  parser.add_argument(
+      '--decoder', type=str, default='default', required=False,
+      help='Types of decoder to use. Default to pix2pix paper. Can choose from'
+           'resize_conv')
 
   FLAGS, _ = parser.parse_known_args()
   main()
