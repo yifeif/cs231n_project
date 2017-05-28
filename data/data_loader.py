@@ -5,8 +5,8 @@ import os
 import tensorflow as tf
 
 
-_WIDTH = 256
-_HEIGHT = 256
+_ORIGINAL_SIZE = 256
+_ORIGINAL_SIZE = 256
 _CHANNELS = 3
 _ORIENTATIONS_PER_MODEL = 10
 
@@ -81,13 +81,13 @@ def input(
   input_queue = tf.train.slice_input_producer([edges_paths, image_paths])
 
   edges = tf.decode_raw(tf.read_file(input_queue[0]), out_type=tf.float32)
-  edges = tf.cast(tf.reshape(edges, [_HEIGHT, _WIDTH, 1]), dtype=tf.float32)
+  edges = tf.cast(tf.reshape(edges, [_ORIGINAL_SIZE, _ORIGINAL_SIZE, 1]), dtype=tf.float32)
   image = tf.cast(
       tf.image.decode_png(tf.read_file(input_queue[1]), channels=_CHANNELS),
       tf.float32)
-  image.set_shape([_HEIGHT, _WIDTH, 3])
+  image.set_shape([_ORIGINAL_SIZE, _ORIGINAL_SIZE, 3])
 
-  if image_size != 256:
+  if image_size != _ORIGINAL_SIZE:
     image = tf.image.resize_images(
         image, size=[image_size, image_size], method=tf.image.ResizeMethod.AREA)
     edges = tf.image.resize_images(
@@ -97,7 +97,7 @@ def input(
   edges = 2*edges - 1
   image = (image / 128.0) - 1
 
-  min_after_dequeue = 1000  # size of buffer to sample from
+  min_after_dequeue = 10000  # size of buffer to sample from
   num_preprocess_threads = 16
   capacity = min_after_dequeue + 3 * batch_size
   edges_batch, images_batch = tf.train.shuffle_batch(
