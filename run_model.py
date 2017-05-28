@@ -61,16 +61,16 @@ def run_a_gan(sess, data_split_dir, num_examples,
   # edge image
   d = edges_batch_placeholder
   # generated images
-  y = generator(d, training, decoder=FLAGS.decoder, model_size=FLAGS.smaller_model)
+  y = generator(d, training, decoder=FLAGS.decoder, model_size=model_size)
 
   with tf.variable_scope("") as scope:
       #scale images to be -1 to 1
       logits_real = discriminator(tf.concat([d, x], axis=3), training,
-                                  model_size=FLAGS.smaller_model)
+                                  model_size=model_size)
       # Re-use discriminator weights on new inputs
       scope.reuse_variables()
       logits_fake = discriminator(tf.concat([d, y], axis=3), training,
-                                  model_size=FLAGS.smaller_model)
+                                  model_size=model_size)
 
   # Get the list of variables for the discriminator and generator
   D_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'discriminator')
