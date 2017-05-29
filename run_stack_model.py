@@ -1,0 +1,264 @@
+"""Runs pix2pix model based on https://arxiv.org/pdf/1611.07004.pdf."""
+import argparse
+import logging
+from datetime import datetime
+from data import data_loader
+from preprocess import data_utils
+from model import *
+import os
+from scipy.misc import imsave
+import tensorflow as tf
+
+
+# a giant helper function
+def run_a_gan(sess, data_split_dir, num_examples,
+              show_every=1000, print_every=100, num_epoch=15):
+  """Train a GAN for a certain number of epochs.
+
+  Inputs:
+  - sess: A tf.Session that we want to use to run our data
+  - G_train_step: A training step for the Generator
+  - G_loss: Generator loss
+  - D_train_step: A training step for the Generator
+  - D_loss: Discriminator loss
+  - G_extra_step: A collection of tf.GraphKeys.UPDATE_OPS for generator
+  - D_extra_step: A collection of tf.GraphKeys.UPDATE_OPS for discriminator
+  - edges_batch: A (N, 256, 256, 1) Tensor representing batch of edge images.
+  - images_batch: A (N, 256, 256, 3) Tensor representing batch of colored
+    images.
+  Returns:
+    Nothing
+  """
+  global_step = tf.contrib.framework.get_or_create_global_step()
+  summary_writer = tf.summary.FileWriter(
+      os.path.join(FLAGS.train_dir, 'train'), sess.graph)
+  val_summary_writer = tf.summary.FileWriter(
+      os.path.join(FLAGS.train_dir, 'validation'))
+  test_summary_writer = tf.summary.FileWriter(
+      os.path.join(FLAGS.train_dir, 'test'))
+  training = tf.placeholder(tf.bool)
+
+  image_size = 64 if FLAGS.smaller_model else 256
+  model_size = (
+      ModelSize.MODEL_64 if FLAGS.smaller_model else ModelSize.MODEL_256)
+
+  train_models_file = os.path.join(data_split_dir, 'train_data.txt')
+  edges_batch, images_batch = (
+      data_loader.input(FLAGS.screenshots_dir, train_models_file, batch_size=4,
+                        image_size=image_size))
+  batch_size = int(edges_batch.shape[0])
+
+  val_models_file = os.path.join(data_split_dir, 'val_data.txt')
+  vedges_batch, vimages_batch = (
+      data_loader.input(FLAGS.screenshots_dir, val_models_file, batch_size=8,
+                        image_size=image_size))
+
+  edges_batch_placeholder = tf.placeholder(tf.float32, (None, image_size, image_size, 1))
+  images_batch_placeholder = tf.placeholder(tf.float32, (None, image_size, image_size, 3))
+  
+  ############################
+  # Setup stage1 model
+  ############################
+  x = images_batch_placeholder
+  # edge image
+  d = edges_batch_placeholder
+  # generated images
+  y_s1 = generator(d, training=False, decoder=FLAGS.decoder, model_size=model_size)
+
+  #############################
+  # Setup stage2 model
+  #############################
+  # Feed result from stage1 and concatenated with edge later
+  if image_size == 64:
+      d_s2 = tf.image.resize_images(tf.concat([d, y_s1], axis=3), [256, 256], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+  else:
+      d_s2 = tf.concat([d, y_s1], axis=3)
+  
+
+  with tf.variable_scope("s2") as scope:
+      # generated images
+      y_s2 = generator(d, training=False, decoder=FLAGS.decoder, model_size=256)
+      
+      #TODO: condition on d or d_s2 here?
+      #scale images to be -1 to 1
+      logits_real = discriminator(tf.concat([d, x], axis=3), training, model_size=256)
+      # Re-use discriminator weights on new inputs
+      scope.reuse_variables()
+      logits_fake = discriminator(tf.concat([d, y_s2], axis=3), training,
+                                     model_size=256)
+
+  # Get the list of variables for the discriminator and generator
+  D_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 's2/discriminator')
+  G_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 's2/generator')
+
+  # get our solver
+  D_solver, G_solver = get_solvers(learning_rate=2e-4)
+
+  # get our loss
+  D_loss, G_loss = gan_loss(
+      logits_real, logits_fake, x, y_s2, lambda_param=100.0)
+
+  with tf.variable_scope("train_summaries") as scope:
+    tf.summary.scalar('D_loss', D_loss)
+    tf.summary.scalar('G_loss', G_loss)
+  summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, "train_summaries")
+  summary_op = tf.summary.merge(summaries)
+
+  with tf.variable_scope("val_summaries") as scope:
+    edges_3_channels = tf.image.grayscale_to_rgb(edges_batch_placeholder)
+    tf.summary.image(
+        'Images',
+        tf.concat([edges_3_channels, images_batch_placeholder, y_s1, y_s2],
+                  axis=2), max_outputs=4)
+    tf.summary.scalar('G_loss', G_loss)
+    tf.summary.scalar('D_loss', D_loss)
+  val_summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, "val_summaries")
+  val_summary_op = tf.summary.merge(val_summaries)
+
+  with tf.variable_scope("test_summaries") as scope:
+    edges_3_channels = tf.image.grayscale_to_rgb(edges_batch_placeholder)
+    tf.summary.image(
+        'Images',
+        tf.concat([edges_3_channels, y_s1, y_s2],
+                  axis=2), max_outputs=4)
+  test_summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, "test_summaries")
+  test_summary_op = tf.summary.merge(test_summaries)
+
+
+  # setup training steps
+  D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 's2/discriminator')
+  G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 's2/generator')
+  with tf.control_dependencies(D_extra_step):
+    D_train_step = D_solver.minimize(D_loss, var_list=D_vars)
+  with tf.control_dependencies(G_extra_step):
+    G_train_step = G_solver.minimize(G_loss, var_list=G_vars, global_step=global_step)
+  
+
+  ###################################
+  # Load ckpts for stage1 and maybe stage2
+  ##################################
+  s2_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='s2')
+  saver = tf.train.Saver(s2_vars)
+  ckpt = tf.train.get_checkpoint_state(FLAGS.train_dir)
+  v2_path = ckpt.model_checkpoint_path + ".index" if ckpt else ""
+  if ckpt and (tf.gfile.Exists(ckpt.model_checkpoint_path) or tf.gfile.Exists(v2_path)):
+      print("Reading stage2 parameters from %s" % ckpt.model_checkpoint_path)
+      saver.restore(sess, ckpt.model_checkpoint_path)
+  else:
+      print("Created stage2 model with fresh parameters.")
+      sess.run(tf.global_variables_initializer())
+      print('Num params: %d' % sum(v.get_shape().num_elements() for v in tf.trainable_variables()))
+  
+  # Load Stage1 checkpoints
+  saver_s1 = tf.train.Saver([v for v in tf.global_variables() if v.name.startswith('generator/')])
+  ckpt_s1 = tf.train.get_checkpoint_state(FLAGS.stage1_train_dir)
+  v2_path_s1 = ckpt_s1.model_checkpoint_path + ".index" if ckpt_s1 else ""
+  if ckpt_s1 and (tf.gfile.Exists(ckpt_s1.model_checkpoint_path) or tf.gfile.Exists(v2_path_s1)):
+      print("Reading stage1 parameters from %s" % ckpt_s1.model_checkpoint_path)
+      saver_s1.restore(sess, ckpt_s1.model_checkpoint_path)
+  else:
+      raise ValueError('Cannot load stage1 checkpoint from FLAGS.stage1_train_dir')
+
+
+  if FLAGS.test_sketch:
+    sketch_input = data_utils.sketch_to_edge(FLAGS.test_sketch)
+    test_summary_str, y_s2_curr = sess.run([test_summary_op, y_s2],
+        feed_dict={training: False, edges_batch_placeholder: sketch_input})
+    test_summary_writer.add_summary(test_summary_str, 1)
+    print('Stored test images.')
+    return
+
+  coord = tf.train.Coordinator()
+  threads = tf.train.start_queue_runners(coord=coord)
+
+  # Run
+  # compute the number of iterations we need
+  max_iter = int(num_examples*num_epoch/batch_size)
+  with coord.stop_on_exception():
+    for it in range(max_iter):
+        edges_batch_curr, images_batch_curr = sess.run([edges_batch, images_batch])
+        # Every so often, add training and validation images to summary
+        if it % show_every == 0:
+            vedges_batch_curr, vimages_batch_curr = sess.run([vedges_batch, vimages_batch])
+            val_summary_str, val_G_loss = sess.run(
+                [val_summary_op, G_loss], feed_dict={training: False,
+                                           edges_batch_placeholder: vedges_batch_curr,
+                                           images_batch_placeholder: vimages_batch_curr})
+            val_summary_writer.add_summary(val_summary_str, it)
+            print('Validation loss %f:' % val_G_loss)
+            print('Stored validation images.')
+        # run a batch of data through the network
+        _, D_loss_curr = sess.run([D_train_step, D_loss],
+                            feed_dict={training: True,
+                            edges_batch_placeholder: edges_batch_curr,
+                            images_batch_placeholder: images_batch_curr}) #G_sample)
+        _, G_loss_curr, gs = sess.run(
+            [G_train_step, G_loss, global_step],
+            feed_dict={training: True,
+                       edges_batch_placeholder: edges_batch_curr,
+                       images_batch_placeholder: images_batch_curr}) #G_sample)
+
+        summary_str = sess.run(summary_op,
+                         feed_dict={training: True,
+                       edges_batch_placeholder: edges_batch_curr,
+                       images_batch_placeholder: images_batch_curr}) #G_sample)
+
+
+        summary_writer.add_summary(summary_str, gs)
+
+        # print loss every so often.
+        # We want to make sure D_loss doesn't go to 0
+        if it % print_every == 0:
+            print('Iter: {}, D: {:.4}, G:{:.4}'.format(it,D_loss_curr,G_loss_curr))
+
+        # per epoch
+        if it % int(np.ceil(num_examples/batch_size)) == 0:
+            checkpoint_file = os.path.join(FLAGS.train_dir, "{:%Y%m%d_%H%M%S}".format(datetime.now()))
+            print("Saving variables to '%s'." % checkpoint_file)
+            saver.save(sess, checkpoint_file, global_step=global_step)
+
+  coord.request_stop()
+  coord.join(threads)
+
+
+def main():
+  data_split_dir = FLAGS.data_split_dir
+  if not data_split_dir:
+    data_split_dir = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), 'data')
+  num_epoch = 15
+
+  with tf.Session() as sess:
+    run_a_gan(
+        sess, data_split_dir, num_examples=95170, num_epoch=num_epoch)
+
+
+if __name__ == '__main__':
+  parser = argparse.ArgumentParser()
+  parser.register(
+      'type', 'bool', lambda v: v.lower() in ('true', 't', 'y', 'yes'))
+  parser.add_argument(
+      '--screenshots_dir', type=str, default=None, required=True,
+      help='Path to the screenshots directory containing data images.')
+  parser.add_argument(
+      '--train_dir', type=str, default='/tmp/checkpoints', required=False,
+      help='Path to the chkpt files.')
+  parser.add_argument(
+      '--data_split_dir', type=str, default=None, required=False,
+      help='Path to directory that contains test_data.txt, '
+           'val_data.txt and train_data.txt files.')
+  parser.add_argument(
+      '--smaller_model', type='bool', default=True, required=False,
+      help='Whether to run on smaller images (64x64) or full images (256x256)')
+  parser.add_argument(
+      '--decoder', type=str, default='default', required=False,
+      help='Types of decoder to use. Default to pix2pix paper. Can choose from'
+           'resize_conv')
+  parser.add_argument(
+      '--test_sketch', type=str, default=None, required=False,
+      help='Path to the test image sketch. Must be of size 256x256.')
+  parser.add_argument(
+      '--stage1_train_dir', type=str, default=None, required=True,
+      help='Path to the stage1 chkpt files.') 
+  FLAGS, _ = parser.parse_known_args()
+  main()
