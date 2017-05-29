@@ -38,54 +38,50 @@ def run_a_gan(sess, data_split_dir, num_examples,
       os.path.join(FLAGS.train_dir, 'test'))
   training = tf.placeholder(tf.bool)
 
-  image_size = 64 if FLAGS.smaller_model else 256
-  model_size = (
-      ModelSize.MODEL_64 if FLAGS.smaller_model else ModelSize.MODEL_256)
-
   train_models_file = os.path.join(data_split_dir, 'train_data.txt')
   edges_batch, images_batch = (
       data_loader.input(FLAGS.screenshots_dir, train_models_file, batch_size=4,
-                        image_size=image_size))
+                        image_size=256))
   batch_size = int(edges_batch.shape[0])
 
   val_models_file = os.path.join(data_split_dir, 'val_data.txt')
   vedges_batch, vimages_batch = (
       data_loader.input(FLAGS.screenshots_dir, val_models_file, batch_size=8,
-                        image_size=image_size))
+                        image_size=256))
 
-  edges_batch_placeholder = tf.placeholder(tf.float32, (None, image_size, image_size, 1))
-  images_batch_placeholder = tf.placeholder(tf.float32, (None, image_size, image_size, 3))
-  
-  ############################
-  # Setup stage1 model
-  ############################
+  edges_batch_placeholder = tf.placeholder(tf.float32, (None, 256, 256, 1))
+  images_batch_placeholder = tf.placeholder(tf.float32, (None, 256, 256, 3))
+
+
+
   x = images_batch_placeholder
   # edge image
   d = edges_batch_placeholder
+  ############################
+  # Setup stage1 model
+  ############################
+  d_s1 = tf.image.resize_images(d, [64, 64], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
   # generated images
-  y_s1 = generator(d, training=False, decoder=FLAGS.decoder, model_size=model_size)
+  y_s1 = generator(d_s1, training=False, decoder=FLAGS.decoder, model_size=ModelSize.MODEL_64)
 
   #############################
   # Setup stage2 model
   #############################
-  # Feed result from stage1 and concatenated with edge later
-  if image_size == 64:
-      d_s2 = tf.image.resize_images(tf.concat([d, y_s1], axis=3), [256, 256], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-  else:
-      d_s2 = tf.concat([d, y_s1], axis=3)
-  
+  # Feed result from stage1 and concatenated with edge
+  y_s1_256 = tf.image.resize_images(y_s1, [256, 256], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+  d_s2 = tf.concat([d, y_s1_256], axis=3)
 
   with tf.variable_scope("s2") as scope:
       # generated images
-      y_s2 = generator(d, training=False, decoder=FLAGS.decoder, model_size=256)
+      y_s2 = generator(d_s2, training=False, decoder=FLAGS.decoder, model_size=ModelSize.MODEL_256)
       
       #TODO: condition on d or d_s2 here?
       #scale images to be -1 to 1
-      logits_real = discriminator(tf.concat([d, x], axis=3), training, model_size=256)
+      logits_real = discriminator(tf.concat([d, x], axis=3), training, model_size=ModelSize.MODEL_256)
       # Re-use discriminator weights on new inputs
       scope.reuse_variables()
       logits_fake = discriminator(tf.concat([d, y_s2], axis=3), training,
-                                     model_size=256)
+                                     model_size=ModelSize.MODEL_256)
 
   # Get the list of variables for the discriminator and generator
   D_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 's2/discriminator')
@@ -108,7 +104,7 @@ def run_a_gan(sess, data_split_dir, num_examples,
     edges_3_channels = tf.image.grayscale_to_rgb(edges_batch_placeholder)
     tf.summary.image(
         'Images',
-        tf.concat([edges_3_channels, images_batch_placeholder, y_s1, y_s2],
+        tf.concat([edges_3_channels, images_batch_placeholder, y_s1_256, y_s2],
                   axis=2), max_outputs=4)
     tf.summary.scalar('G_loss', G_loss)
     tf.summary.scalar('D_loss', D_loss)
@@ -119,7 +115,7 @@ def run_a_gan(sess, data_split_dir, num_examples,
     edges_3_channels = tf.image.grayscale_to_rgb(edges_batch_placeholder)
     tf.summary.image(
         'Images',
-        tf.concat([edges_3_channels, y_s1, y_s2],
+        tf.concat([edges_3_channels, y_s1_256, y_s2],
                   axis=2), max_outputs=4)
   test_summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, "test_summaries")
   test_summary_op = tf.summary.merge(test_summaries)
@@ -247,9 +243,6 @@ if __name__ == '__main__':
       '--data_split_dir', type=str, default=None, required=False,
       help='Path to directory that contains test_data.txt, '
            'val_data.txt and train_data.txt files.')
-  parser.add_argument(
-      '--smaller_model', type='bool', default=True, required=False,
-      help='Whether to run on smaller images (64x64) or full images (256x256)')
   parser.add_argument(
       '--decoder', type=str, default='default', required=False,
       help='Types of decoder to use. Default to pix2pix paper. Can choose from'
