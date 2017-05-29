@@ -104,7 +104,7 @@ def run_a_gan(sess, data_split_dir, num_examples,
     edges_3_channels = tf.image.grayscale_to_rgb(edges_batch_placeholder)
     tf.summary.image(
         'Images',
-        tf.concat([edges_3_channels, images_batch_placeholder, y_s1_256],
+        tf.concat([edges_3_channels, images_batch_placeholder, y_s1_256, y_s2],
                   axis=2), max_outputs=4)
     tf.summary.scalar('G_loss', G_loss)
     tf.summary.scalar('D_loss', D_loss)
