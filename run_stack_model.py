@@ -62,7 +62,7 @@ def run_a_gan(sess, data_split_dir, num_examples,
   ############################
   d_s1 = tf.image.resize_images(d, [64, 64], method=tf.image.ResizeMethod.AREA)
   # generated images
-  y_s1 = generator(d_s1, training=False, dropout_training=False, decoder=FLAGS.decoder, model_size=ModelSize.MODEL_64)
+  y_s1 = generator(d_s1, training=False, decoder=FLAGS.decoder, model_size=ModelSize.MODEL_64)
 
   #############################
   # Setup stage2 model
