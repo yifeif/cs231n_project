@@ -62,7 +62,7 @@ def run_a_gan(sess, data_split_dir, num_examples,
   ############################
   d_s1 = tf.image.resize_images(d, [64, 64], method=tf.image.ResizeMethod.AREA)
   # generated images
-  y_s1 = generator(d_s1, training=False, decoder=FLAGS.decoder, model_size=ModelSize.MODEL_64)
+  y_s1 = generator(d_s1, training, decoder=FLAGS.decoder, model_size=ModelSize.MODEL_64)
 
   #############################
   # Setup stage2 model
@@ -86,6 +86,8 @@ def run_a_gan(sess, data_split_dir, num_examples,
   # Get the list of variables for the discriminator and generator
   D_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 's2/discriminator')
   G_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 's2/generator')
+  print(D_vars)
+  print(G_vars)
 
   # get our solver
   D_solver, G_solver = get_solvers(learning_rate=2e-4)
