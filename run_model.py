@@ -180,8 +180,8 @@ def run_a_gan(sess, data_split_dir, num_examples,
         if it % print_every == 0:
             print('Iter: {}, D: {:.4}, G:{:.4}'.format(it,D_loss_curr,G_loss_curr))
 
-        # per epoch
-        if it % int(np.ceil(num_examples/batch_size)) == 0:
+        # per quarter epoch
+        if it % int(np.ceil(num_examples/batch_size/4)) == 0:
             checkpoint_file = os.path.join(FLAGS.train_dir, "{:%Y%m%d_%H%M%S}".format(datetime.now()))
             print("Saving variables to '%s'." % checkpoint_file)
             saver.save(sess, checkpoint_file, global_step=global_step)
