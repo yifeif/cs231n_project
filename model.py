@@ -136,6 +136,20 @@ def generator(
           raise ValueError('Invalid decoder type %s' % decoder)
 
 
+def stage2_generator(d, training=True):
+    with tf.variable_scope("generator"):
+        # 64x4x4 --> 16x16x512
+        encoder_outputs = stage2_encoder(d, training)
+        # 4-stage deep residual blocks
+        res1 = stage2_residual_block(encoder_outputs)
+        res2 = stage2_residual_block(res1)
+        res3 = stage2_residual_block(res2)
+        res4 = stage2_residual_block(res3)
+        # 16x16x512 --> 256X256X3
+        return stage2_decoder(res4, training)
+
+
+
 def encoder(edges, training=True, model_size=ModelSize.MODEL_256):
     encoder_outputs = {}
 
@@ -174,6 +188,51 @@ def encoder(edges, training=True, model_size=ModelSize.MODEL_256):
         'a7_bn': a7_bn, 'final': a8_bn})
     return encoder_outputs
 
+
+def stage2_residual_block(inputs, training=True):
+    a1 = conv2d(inputs, 512, kernel_size=(3, 3), strides=(1, 1), padding='same')
+    a1_bn = batch_norm(a1, training=training)
+    a1_relu = tf.nn.relu(a1_bn)
+    a2 = conv2d(a1_relu, 512, kernel_size=(3, 3), strides=(1, 1), padding='same')
+    a2_bn = batch_norm(a2, training=training)
+    outputs = inputs + a2_bn
+    outputs = tf.nn.relu(outputs)
+    return outputs
+
+
+def stage2_encoder(edges, training=True):
+    # layer_1: [batch, 64, 64, 1] => [batch, 64, 64, 128]
+    a1 = conv2d(edges, 128, kernel_size=(3, 3), strides=(1, 1), padding='same', activation=tf.nn.relu)
+    # layer_2: [batch, 64, 64, 128] => [batch, 32, 32, 256]
+    a2 = conv2d(a1, 256, padding='same')
+    a2_bn = batch_norm(a2, training=training)
+    a2_relu = tf.nn.relu(a2_bn)
+    # layer_3: [batch, 32, 32, 256] => [batch, 16, 16, 521]
+    a3 = conv2d(a2_relu, 512, padding='same')
+    a3_bn = batch_norm(a3, training=training)
+    return tf.nn.relu(a3_bn)
+
+
+def stage2_decoder(inputs, training=True):
+    # -->s2 * s2 * gf_dim*2
+    a1_resize = tf.image.resize_images(inputs, [32, 32], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+    a1 = conv2d(a1_resize, 256, kernel_size=(3, 3), strides=(1, 1), padding='same')
+    a1_relu = tf.nn.relu(a1)
+    # -->s * s * gf_dim
+    a2_resize = tf.image.resize_images(a1_relu, [64, 64], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+    a2 = conv2d(a2_resize, 128, kernel_size=(3, 3), strides=(1, 1), padding='same')
+    a2_relu = tf.nn.relu(a2)    
+    # -->2s * 2s * gf_dim/2
+    a3_resize = tf.image.resize_images(a2_relu, [128, 128], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+    a3 = conv2d(a3_resize, 64, kernel_size=(3, 3), strides=(1, 1), padding='same')
+    a3_relu = tf.nn.relu(a3)  
+    # -->4s * 4s * gf_dim//4
+    a4_resize = tf.image.resize_images(a3_relu, [256, 256], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+    a4 = conv2d(a4_resize, 32, kernel_size=(3, 3), strides=(1, 1), padding='same')
+    a4_relu = tf.nn.relu(a4) 
+    # -->4s * 4s * 3
+    a5 = conv2d(a4_relu, 3, kernel_size=(3, 3), strides=(1, 1), padding='same', activation=tf.nn.tanh)
+    return a5
 
 def default_decoder(
     encoder_outputs, training=True, dropout_training=True,
