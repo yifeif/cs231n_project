@@ -60,9 +60,16 @@ def run_a_gan(sess, data_split_dir, num_examples,
   ############################
   # Setup stage1 model
   ############################
-  d_s1 = tf.image.resize_images(d, [64, 64], method=tf.image.ResizeMethod.AREA)
-  # generated images
-  y_s1 = generator(d_s1, training=False, decoder=FLAGS.decoder, model_size=ModelSize.MODEL_64)
+  if FLAGS.smaller_model:
+      d_s1 = tf.image.resize_images(d, [64, 64], method=tf.image.ResizeMethod.AREA)
+      stage1_model_size = ModelSize.MODEL_64 
+  else:
+      d_s1 = d
+      stage1_model_size = ModelSize.MODEL_256 
+
+  # generated images 
+  y_s1 = generator(d_s1, training=False, decoder=FLAGS.decoder, model_size=stage1_model_size)
+
 
   #############################
   # Setup stage2 model
@@ -255,6 +262,10 @@ if __name__ == '__main__':
       help='Path to the test image sketch. Must be of size 256x256.')
   parser.add_argument(
       '--stage1_train_dir', type=str, default=None, required=True,
-      help='Path to the stage1 chkpt files.') 
+      help='Path to the stage1 chkpt files.')
+  parser.add_argument(
+      '--smaller_model', type='bool', default=True, required=False,
+      help='Whether to run on smaller images (64x64) or full images (256x256)') 
+
   FLAGS, _ = parser.parse_known_args()
   main()
