@@ -148,8 +148,7 @@ def run_a_gan(sess, data_split_dir, num_examples,
   ###################################
   # Load ckpts for stage1 and maybe stage2
   ##################################
-  s2_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='s2')
-  saver = tf.train.Saver(s2_vars)
+  saver = tf.train.Saver([v for v in tf.global_variables() if v.name.startswith('s2/')])
   ckpt = tf.train.get_checkpoint_state(FLAGS.train_dir)
   v2_path = ckpt.model_checkpoint_path + ".index" if ckpt else ""
   if ckpt and (tf.gfile.Exists(ckpt.model_checkpoint_path) or tf.gfile.Exists(v2_path)):
