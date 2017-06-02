@@ -81,7 +81,12 @@ def run_a_gan(sess, data_split_dir, num_examples,
   with tf.variable_scope("s2") as scope:
       # generated images
       # No dropout in stage2
-      y_s2 = generator(d_s2, training, dropout_training=False, decoder=FLAGS.decoder, model_size=ModelSize.MODEL_256)
+      if FLAGS.stackgan:
+          print('Use stackgan architecture for stage2')
+          y_s2 = stage2_generator(d_s2, training)
+      else:
+          print('Use same architecture as stage1 for stage2')
+          y_s2 = generator(d_s2, training, dropout_training=False, decoder=FLAGS.decoder, model_size=ModelSize.MODEL_256)
       
       #TODO: condition on d or d_s2 here?
       #scale images to be -1 to 1
@@ -266,6 +271,9 @@ if __name__ == '__main__':
   parser.add_argument(
       '--smaller_model', type='bool', default=True, required=False,
       help='Whether to run on smaller images (64x64) or full images (256x256)') 
+  parser.add_argument(
+      '--stackgan', type='bool', default=False, required=False,
+      help='Follow stage2 in stackgan paper') 
 
   FLAGS, _ = parser.parse_known_args()
   main()
