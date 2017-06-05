@@ -53,6 +53,29 @@ def get_inputs_for_model_paths(model_paths):
   return edge_files, image_files, orientations
 
 
+def get_inputs_with_orientations(
+    edges_paths, image_paths, orientations):
+  edges_paths_1 = []
+  image_paths_1 = []
+  orientations_1 = []
+  edges_paths_2 = []
+  image_paths_2 = []
+  orientations_2 = []
+
+  for i in range(len(edges_paths)):
+    model_index = int(i/_ORIENTATIONS_PER_MODEL) * _ORIENTATIONS_PER_MODEL
+    orientation_index = i - model_index
+    for o in range(_ORIENTATIONS_PER_MODEL):
+      edges_paths_1.append(edges_paths[i])
+      image_paths_1.append(image_paths[i])
+      orientations_1.append(orientation_index)
+      image_paths_2.append(image_paths[model_index+o])
+      edges_paths_2.append(edges_paths[model_index+o])
+      orientations_2.append(orientations[model_index+o])
+  return (edges_paths_1, image_paths_1, orientations_1,
+          edges_paths_2, image_paths_2, orientations_2)
+
+
 def input(
     screenshots_dir, model_list_file, batch_size=4, image_size=256):
   """Creates an input for ShapeNet screenshots and edge data.
@@ -106,3 +129,84 @@ def input(
       capacity=capacity,
       min_after_dequeue=min_after_dequeue)
   return edges_batch, images_batch
+
+
+def multi_view_input(
+    screenshots_dir, model_list_file, batch_size=4, image_size=256):
+  """Creates two-view image pair input.
+
+  Args:
+    screenshots_dir: directory to ShapeNet screenshots and edges data.
+    model_list_file: Path to file that contains a list of paths
+      relative to screenshots_dir for the models that we want to load
+      either for training, validation or testing.
+    image_size: (Integer) size of images to get. Images are square in
+      size, so WIDTH == HEIGHT == image_size.
+
+  Returns:
+    A tuple of:
+    - edges_batch: (N, image_size, image_size, 1) Tensor of input images (edges).
+    - images_batch: (N, image_size, image_size, 3) Tensor of training output images.
+
+  Raises:
+    IOError if model_list_file is not a file.
+  """
+  if not os.path.isfile(model_list_file):
+    raise IOError('%s does not exist.' % model_list_file)
+
+  edges_paths, image_paths, orientations = get_inputs_for_model_paths(
+      get_model_paths(model_list_file, screenshots_dir))
+
+  (edges_paths_1, image_paths_1, orientations_1,
+   edges_paths_2, image_paths_2, orientations_2
+   ) = get_inputs_with_orientations(edges_paths, image_paths, orientations)
+
+  input_queue = tf.train.slice_input_producer(
+      [edges_paths_1, image_paths_1, orientations_1,
+       edges_paths_2, image_paths_2, orientations_2])
+
+  def prepare_edges(edges_file):
+    edges = tf.decode_raw(tf.read_file(edges_file), out_type=tf.float32)
+    edges = tf.cast(tf.reshape(edges, [_ORIGINAL_SIZE, _ORIGINAL_SIZE, 1]), dtype=tf.float32)
+    if image_size != _ORIGINAL_SIZE:
+      edges = tf.image.resize_images(
+          edges, size=[image_size, image_size], method=tf.image.ResizeMethod.AREA)
+    # Shift and scale so that edges and image are between -1 and 1
+    edges = 2*edges - 1
+    return edges
+
+  def prepare_image(image_file):
+    image = tf.cast(
+        tf.image.decode_png(tf.read_file(image_file), channels=_CHANNELS),
+        tf.float32)
+    image.set_shape([_ORIGINAL_SIZE, _ORIGINAL_SIZE, 3])
+    if image_size != _ORIGINAL_SIZE:
+      image = tf.image.resize_images(
+          image, size=[image_size, image_size], method=tf.image.ResizeMethod.AREA)
+    # Shift and scale so that edges and image are between -1 and 1
+    image = (image / 128.0) - 1
+    return image
+
+  def prepare_orientation(orientation):
+    return tf.one_hot(orientation, 10, on_value=1., off_value=-1., dtype=tf.float32)
+
+  edges_1 = prepare_edges(input_queue[0])
+  image_1 = prepare_image(input_queue[1])
+  orientation_1 = prepare_orientation(input_queue[2])
+  edges_2 = prepare_edges(input_queue[3])
+  image_2 = prepare_image(input_queue[4])
+  orientation_2 = prepare_orientation(input_queue[5])
+
+  min_after_dequeue = 10000  # size of buffer to sample from
+  num_preprocess_threads = 16
+  capacity = min_after_dequeue + 3 * batch_size
+  (edges_batch_1, images_batch_1, orientation_batch_1,
+   edges_batch_2, images_batch_2, orientation_batch_2) = tf.train.shuffle_batch(
+      [edges_1, image_1, orientation_1, edges_2, image_2, orientation_2],
+      batch_size=batch_size,
+      num_threads=num_preprocess_threads,
+      capacity=capacity,
+      min_after_dequeue=min_after_dequeue)
+  return (edges_batch_1, images_batch_1, orientation_batch_1,
+          edges_batch_2, images_batch_2, orientation_batch_2)
+
