@@ -69,24 +69,29 @@ def discriminator(x, training=True, model_size=ModelSize.MODEL_256,
           # layer_1: [batch, 256, 256, 3] => [batch, 128, 128, 64]
           a1 = conv2d(x, 64, activation=leaky_relu)
           # layer_2: [batch, 128, 128, 128] => [batch, 64, 64, 128]
-          a2 = conv2d(a1, 128, activation=leaky_relu)
+          a2 = conv2d(a1, 128, activation=None)
           a2_bn = batch_norm(a2, training=training)
+          a2_bn = leaky_relu(a2_bn)
         else:
           a2_bn = x
         # layer_3: [batch, 64, 64, 128] => [batch, 32, 32, 256]
-        a3 = conv2d(a2_bn, 256, activation=leaky_relu)
+        a3 = conv2d(a2_bn, 256, activation=None)
         a3_bn = batch_norm(a3, training=training)
+        a3_bn = leaky_relu(a3_bn)
         # layer_4: [batch, 32, 32, 256] => [batch, 31, 31, 512]
-        a4 = conv2d(a3_bn, 512, strides=(1,1), activation=leaky_relu)
+        a4 = conv2d(a3_bn, 512, strides=(1,1), activation=None)
         a4_bn = batch_norm(a4, training=training)
+        a4_bn = leaky_relu(a4_bn)
 
         # layer_5: [batch, 32, 32, 512] => [batch, 30, 30, 512]
-        a5 = conv2d(a4_bn, 512, strides=(1,1), activation=leaky_relu)
+        a5 = conv2d(a4_bn, 512, strides=(1,1), activation=None)
         a5_bn = batch_norm(a5, training=training)
+        a5_bn = leaky_relu(a5_bn)
 
         # layer_6: [batch, 32, 32, 512] => [batch, 29, 29, 512]
-        a6 = conv2d(a5_bn, 512, strides=(1,1), activation=leaky_relu)
+        a6 = conv2d(a5_bn, 512, strides=(1,1), activation=None)
         a6_bn = batch_norm(a6, training=training)
+        a6_bn = leaky_relu(a6_bn)
 
         if orientations is not None:
           a6_bn_with_orientations = tf.concat(
