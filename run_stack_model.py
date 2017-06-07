@@ -34,6 +34,9 @@ def run_a_gan(sess, data_split_dir, num_examples,
       os.path.join(FLAGS.train_dir, 'train'), sess.graph)
   val_summary_writer = tf.summary.FileWriter(
       os.path.join(FLAGS.train_dir, 'validation'))
+  # A fixed set of validation inputs to generate the progress diagram
+  val_fixed_set_summary_writer = tf.summary.FileWriter(
+      os.path.join(FLAGS.train_dir, 'validation_fixed_set'))
   test_summary_writer = tf.summary.FileWriter(
       os.path.join(FLAGS.train_dir, 'test'))
   training = tf.placeholder(tf.bool)
@@ -48,6 +51,11 @@ def run_a_gan(sess, data_split_dir, num_examples,
   vedges_batch, vimages_batch = (
       data_loader.input(FLAGS.screenshots_dir, val_models_file, batch_size=8,
                         image_size=256))
+
+  val_fixed_set_models_file = os.path.join(data_split_dir, 'val_fixed_set_data.txt')
+  vfsedges_batch, vfsimages_batch = (
+      data_loader.input(FLAGS.screenshots_dir, val_fixed_set_models_file, batch_size=8,
+                        image_size=256))  
 
   edges_batch_placeholder = tf.placeholder(tf.float32, (None, 256, 256, 1))
   images_batch_placeholder = tf.placeholder(tf.float32, (None, 256, 256, 3))
@@ -126,6 +134,17 @@ def run_a_gan(sess, data_split_dir, num_examples,
   val_summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, "val_summaries")
   val_summary_op = tf.summary.merge(val_summaries)
 
+  with tf.variable_scope("val_fixed_set_summaries") as scope:
+    edges_3_channels = tf.image.grayscale_to_rgb(edges_batch_placeholder)
+    tf.summary.image(
+        'Images',
+        tf.concat([edges_3_channels, images_batch_placeholder, y_s1_256, y_s2],
+                  axis=2), max_outputs=20)
+    tf.summary.scalar('G_loss', G_loss)
+    tf.summary.scalar('D_loss', D_loss)
+  val_fixed_set_summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, "val_fixed_set_summaries")
+  val_fixed_set_summary_op = tf.summary.merge(val_fixed_set_summaries)
+
   with tf.variable_scope("test_summaries") as scope:
     edges_3_channels = tf.image.grayscale_to_rgb(edges_batch_placeholder)
     tf.summary.image(
@@ -197,6 +216,17 @@ def run_a_gan(sess, data_split_dir, num_examples,
             val_summary_writer.add_summary(val_summary_str, it)
             print('Validation loss %f:' % val_G_loss)
             print('Stored validation images.')
+        # Every so often, add fixed validation result to summary
+        if it % 2000 == 0:
+            vfsedges_batch_curr, vfsimages_batch_curr = sess.run([vfsedges_batch, vfsimages_batch])
+            val_fixed_set_summary_str, val_fixed_set_G_loss = sess.run(
+                [val_fixed_set_summary_op, G_loss], feed_dict={training: False,
+                edges_batch_placeholder: vfsedges_batch_curr,
+                images_batch_placeholder: vfsimages_batch_curr})
+            val_fixed_set_summary_writer.add_summary(val_fixed_set_summary_str, it)
+            print('Validation loss %f:' % val_fixed_set_G_loss)
+            print('Stored validation fixed set images.')
+
         # run a batch of data through the network
         _, D_loss_curr = sess.run([D_train_step, D_loss],
                             feed_dict={training: True,
