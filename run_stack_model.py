@@ -55,7 +55,7 @@ def run_a_gan(sess, data_split_dir, num_examples,
   val_fixed_set_models_file = os.path.join(data_split_dir, 'val_fixed_set_data.txt')
   vfsedges_batch, vfsimages_batch = (
       data_loader.input(FLAGS.screenshots_dir, val_fixed_set_models_file, batch_size=20,
-                        image_size=256))  
+                        image_size=256, shuffle=False))  
 
   edges_batch_placeholder = tf.placeholder(tf.float32, (None, 256, 256, 1))
   images_batch_placeholder = tf.placeholder(tf.float32, (None, 256, 256, 3))
