@@ -119,19 +119,21 @@ def input(
   # Shift and scale so that edges and image are between -1 and 1
   edges = 2*edges - 1
   image = (image / 128.0) - 1
-
-  min_after_dequeue = 10000  # size of buffer to sample from
-  num_preprocess_threads = 16
-  capacity = min_after_dequeue + 3 * batch_size
+  
   if shuffle:
-    edges_batch, images_batch = tf.train.shuffle_batch(
-        [edges, image], batch_size=batch_size,
-        num_threads=num_preprocess_threads,
-        capacity=capacity,
-        min_after_dequeue=min_after_dequeue)
+    min_after_dequeue = 10000  # size of buffer to sample from
+    num_preprocess_threads = 16
+    capacity = min_after_dequeue + 3 * batch_size
   else:
-    edges_batch = edges
-    images_batch = image
+    min_after_dequeue = 0
+    num_preprocess_threads = 1
+    capacity = batch_size
+  
+  edges_batch, images_batch = tf.train.shuffle_batch(
+      [edges, image], batch_size=batch_size,
+      num_threads=num_preprocess_threads,
+      capacity=capacity,
+      min_after_dequeue=min_after_dequeue)
   return edges_batch, images_batch
 
 
