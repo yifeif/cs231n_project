@@ -91,7 +91,7 @@ def get_inputs_with_orientations(
 
 
 def input(
-    screenshots_dir, model_list_file, batch_size=4, image_size=256):
+    screenshots_dir, model_list_file, batch_size=4, image_size=256, shuffle=True):
   """Creates an input for ShapeNet screenshots and edge data.
 
   Args:
@@ -133,10 +133,16 @@ def input(
   # Shift and scale so that edges and image are between -1 and 1
   edges = 2*edges - 1
   image = (image / 128.0) - 1
-
-  min_after_dequeue = 10000  # size of buffer to sample from
-  num_preprocess_threads = 16
-  capacity = min_after_dequeue + 3 * batch_size
+  
+  if shuffle:
+    min_after_dequeue = 10000  # size of buffer to sample from
+    num_preprocess_threads = 16
+    capacity = min_after_dequeue + 3 * batch_size
+  else:
+    min_after_dequeue = 0
+    num_preprocess_threads = 1
+    capacity = batch_size
+  
   edges_batch, images_batch = tf.train.shuffle_batch(
       [edges, image], batch_size=batch_size,
       num_threads=num_preprocess_threads,
