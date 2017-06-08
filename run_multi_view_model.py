@@ -47,7 +47,7 @@ def run_a_gan(sess, data_split_dir, num_examples,
    edges_batch2, images_batch2, orientation_batch2) = (
       data_loader.multi_view_input(
           FLAGS.screenshots_dir, train_models_file, batch_size=4,
-          image_size=image_size))
+          image_size=image_size, input_orientation=FLAGS.input_orientation))
   batch_size = int(edges_batch1.shape[0])
 
   val_models_file = os.path.join(data_split_dir, 'val_data.txt')
@@ -55,13 +55,17 @@ def run_a_gan(sess, data_split_dir, num_examples,
    vedges_batch2, vimages_batch2, vorientation_batch2) = (
       data_loader.multi_view_input(
           FLAGS.screenshots_dir, val_models_file, batch_size=4,
-          image_size=image_size))
+          image_size=image_size, input_orientation=FLAGS.input_orientation))
 
   edges_batch_placeholder = tf.placeholder(tf.float32, (None, image_size, image_size, 1))
   images_batch_placeholder = tf.placeholder(tf.float32, (None, image_size, image_size, 3))
   orien_batch_placeholder1 = tf.placeholder(tf.float32, (None, 10))
   orien_batch_placeholder2 = tf.placeholder(tf.float32, (None, 10))
-  o = tf.concat([orien_batch_placeholder1, orien_batch_placeholder2], axis=1)
+  if FLAGS.input_orientation:
+    # Input orientation is always the same, no need to condition on it.
+    o = orien_batch_placeholder2
+  else:
+    o = tf.concat([orien_batch_placeholder1, orien_batch_placeholder2], axis=1)
 
   # Create model
   x = images_batch_placeholder
@@ -96,8 +100,10 @@ def run_a_gan(sess, data_split_dir, num_examples,
   with tf.control_dependencies(D_extra_step):
     D_train_step = D_solver.minimize(D_loss, var_list=D_vars)
   with tf.control_dependencies(G_extra_step):
-    G_train_step = G_solver.minimize(G_loss, var_list=G_vars, global_step=global_step)
-
+    #G_train_step = G_solver.minimize(G_loss, var_list=G_vars, global_step=global_step)
+    G_grads = G_solver.compute_gradients(G_loss, var_list=G_vars)
+    G_grads_clipped = [(tf.clip_by_value(grad, -2., 2.), var) for grad, var in G_grads]
+    G_train_step = G_solver.apply_gradients(G_grads_clipped, global_step=global_step)
 
   with tf.variable_scope("train_summaries") as scope:
     tf.summary.scalar('D_loss', D_loss)
@@ -249,5 +255,9 @@ if __name__ == '__main__':
   parser.add_argument(
       '--test_sketch', type=str, default=None, required=False,
       help='Path to the test image sketch. Must be of size 256x256.')
+  parser.add_argument(
+      '--input_orientation', type=int, default=None, required=False,
+      help='Allows specifying input orientation. For ex. if orientation is 9 '
+           'we would only front-left views as inputs.')
   FLAGS, _ = parser.parse_known_args()
   main()

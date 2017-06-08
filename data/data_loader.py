@@ -11,7 +11,8 @@ _CHANNELS = 3
 _ORIENTATIONS_PER_MODEL = 10
 
 
-def get_model_paths(model_paths_file, screenshot_dir):
+def get_model_paths(model_paths_file, screenshot_dir,
+                    filter_str=None):
   """Reads model paths from file.
 
   Args:
@@ -23,8 +24,12 @@ def get_model_paths(model_paths_file, screenshot_dir):
   """
   with open(model_paths_file, 'r') as f:
     path_suffixes = f.read().split('\n')
-    return [os.path.join(screenshot_dir, path_suffix)
-            for path_suffix in path_suffixes]
+    if filter_str is None:
+      return [os.path.join(screenshot_dir, path_suffix)
+              for path_suffix in path_suffixes]
+    else:
+      return [os.path.join(screenshot_dir, path_suffix)
+              for path_suffix in path_suffixes if filter_str in path_suffix]
 
 
 def get_inputs_for_model_paths(model_paths):
@@ -54,7 +59,7 @@ def get_inputs_for_model_paths(model_paths):
 
 
 def get_inputs_with_orientations(
-    edges_paths, image_paths, orientations):
+    edges_paths, image_paths, orientations, input_orientation):
   edges_paths_1 = []
   image_paths_1 = []
   orientations_1 = []
@@ -62,7 +67,16 @@ def get_inputs_with_orientations(
   image_paths_2 = []
   orientations_2 = []
 
-  for i in range(len(edges_paths)):
+  # By default create inputs for all orientations.
+  start_orientation = 0
+  step = 1
+  # If input orientation is specified, only use that orientation
+  # as the input.
+  if input_orientation is not None:
+    start_orientation = input_orientation
+    step = 10
+
+  for i in range(start_orientation, len(edges_paths), step):
     model_index = int(i/_ORIENTATIONS_PER_MODEL) * _ORIENTATIONS_PER_MODEL
     orientation_index = i - model_index
     for o in range(_ORIENTATIONS_PER_MODEL):
@@ -132,7 +146,8 @@ def input(
 
 
 def multi_view_input(
-    screenshots_dir, model_list_file, batch_size=4, image_size=256):
+    screenshots_dir, model_list_file, batch_size=4, image_size=256,
+    object_type='car', input_orientation=None):
   """Creates two-view image pair input.
 
   Args:
@@ -155,11 +170,13 @@ def multi_view_input(
     raise IOError('%s does not exist.' % model_list_file)
 
   edges_paths, image_paths, orientations = get_inputs_for_model_paths(
-      get_model_paths(model_list_file, screenshots_dir))
+      get_model_paths(model_list_file, screenshots_dir,
+      filter_str='/%s/' % object_type))
 
   (edges_paths_1, image_paths_1, orientations_1,
    edges_paths_2, image_paths_2, orientations_2
-   ) = get_inputs_with_orientations(edges_paths, image_paths, orientations)
+   ) = get_inputs_with_orientations(
+      edges_paths, image_paths, orientations, input_orientation)
 
   input_queue = tf.train.slice_input_producer(
       [edges_paths_1, image_paths_1, orientations_1,

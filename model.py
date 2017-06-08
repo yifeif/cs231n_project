@@ -140,7 +140,8 @@ def generator(
         encoder_outputs = encoder(d, training, model_size,
                                   latent_vector_size=latent_vector_size)
         if orientations is not None:
-          orientations = tf.reshape(orientations, [-1, 1, 1, 20])
+          orientations = tf.expand_dims(tf.expand_dims(
+              orientations, axis=1), axis=1)
           encoder_outputs['final'] = tf.concat(
               [encoder_outputs['final'], orientations], axis=3)
           return multi_view_decoder(
@@ -380,20 +381,23 @@ def multi_view_decoder(
     d8_bn = batch_norm(d8, training=training)
     d8_relu = tf.nn.relu(d8_bn)
     d8_dropout = tf.layers.dropout(d8_relu, dropout_p, training=dropout_training)
+    d8_unet = tf.concat([d8_dropout, encoder_outputs['a7_bn']], 3)
 
-    d8_resize = tf.image.resize_images(d8_dropout, [4, 4], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+    d8_resize = tf.image.resize_images(d8_unet, [4, 4], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
     d7 = conv2d(d8_resize, 512, strides=(1,1), padding='same', activation=None)
     d7_bn = batch_norm(d7, training=training)
     d7_relu = tf.nn.relu(d7_bn)
     d7_dropout = tf.layers.dropout(d7_relu, dropout_p, training=dropout_training)
+    d7_unet = tf.concat([d7_dropout, encoder_outputs['a6_bn']], 3)
 
-    d7_resize = tf.image.resize_images(d7_dropout, [8, 8], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+    d7_resize = tf.image.resize_images(d7_unet, [8, 8], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
     d6 = conv2d(d7_resize, 512, strides=(1,1), padding='same', activation=None)
     d6_bn = batch_norm(d6, training=training)
     d6_relu = tf.nn.relu(d6_bn)
     d6_dropout = tf.layers.dropout(d6_relu, dropout_p, training=dropout_training)
+    d6_unet = tf.concat([d6_dropout, encoder_outputs['a5_bn']], 3)
 
-    d6_resize = tf.image.resize_images(d6_dropout, [16, 16], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+    d6_resize = tf.image.resize_images(d6_unet, [16, 16], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
     d5 = conv2d(d6_resize, 512, strides=(1,1), padding='same', activation=None)
     d5_bn = batch_norm(d5, training=training)
     d5_relu = tf.nn.relu(d5_bn)
