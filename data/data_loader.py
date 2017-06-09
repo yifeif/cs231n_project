@@ -138,16 +138,19 @@ def input(
     min_after_dequeue = 10000  # size of buffer to sample from
     num_preprocess_threads = 16
     capacity = min_after_dequeue + 3 * batch_size
+    edges_batch, images_batch = tf.train.shuffle_batch(
+        [edges, image], batch_size=batch_size,
+        num_threads=num_preprocess_threads,
+        capacity=capacity,
+        min_after_dequeue=min_after_dequeue)
   else:
-    min_after_dequeue = 0
     num_preprocess_threads = 1
     capacity = batch_size
-  
-  edges_batch, images_batch = tf.train.shuffle_batch(
-      [edges, image], batch_size=batch_size,
-      num_threads=num_preprocess_threads,
-      capacity=capacity,
-      min_after_dequeue=min_after_dequeue)
+
+    edges_batch, images_batch = tf.train.batch(
+        [edges, image], batch_size=batch_size,
+        num_threads=num_preprocess_threads,
+        capacity=capacity)
   return edges_batch, images_batch
 
 
