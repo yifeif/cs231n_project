@@ -308,7 +308,7 @@ if __name__ == '__main__':
       '--smaller_model', type='bool', default=True, required=False,
       help='Whether to run on smaller images (64x64) or full images (256x256)') 
   parser.add_argument(
-      '--stackgan', type='bool', default=False, required=False,
+      '--stackgan', type='bool', default=True, required=False,
       help='Follow stage2 in stackgan paper') 
 
   FLAGS, _ = parser.parse_known_args()
