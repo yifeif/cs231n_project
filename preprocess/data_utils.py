@@ -88,11 +88,12 @@ def sketch_to_edge(sketch_path):
   
 
   if os.path.isdir(sketch_path):
-    sketch_paths = [os.path.join(dp, f) for dp, dn, filenames in os.walk() for f in filenames if os.path.splitext(sketch_path)[1] == '.png']
+    sketch_paths = [os.path.join(dp, f) for dp, dn, filenames in os.walk(sketch_path) for f in filenames if os.path.splitext(f)[1] == '.png']
   else:
     sketch_paths = [sketch_path]
 
   sketches = []
+  print(sketch_paths)
   for p in sketch_paths:
     sketch = Image.open(p).convert('L')
     sketch = np.array(sketch)
@@ -102,7 +103,7 @@ def sketch_to_edge(sketch_path):
     sketch = sketch.reshape([256, 256, 1])
     sketch = sketch.astype(np.float32)*2 - 1
     sketches.append(sketch)
-  return np.array(sketches)
+  return np.asarray(sketches)
 
 
 def preprocess_rawrgb(path):

@@ -191,12 +191,7 @@ def run_a_gan(sess, data_split_dir, num_examples,
 
   if FLAGS.test_sketch:
     sketch_input = data_utils.sketch_to_edge(FLAGS.test_sketch)
-    if FLAGS.smaller_model:
-      sketch_input = tf.image.resize_images(
-          sketch_input[0], [64, 64], tf.image.ResizeMethod.AREA)
-      sketch_input = tf.reshape(sketch_input, [1, 64, 64, 1])
-      
-      sketch_input = sess.run(sketch_input)
+    print(sketch_input.shape)
           
     test_summary_str, y_s2_curr = sess.run([test_summary_op, y_s2],
         feed_dict={training: False, edges_batch_placeholder: sketch_input})
