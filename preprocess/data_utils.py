@@ -76,7 +76,7 @@ def sketch_to_edge(sketch_path):
   """Create edge input numpy array from sketch path or dir.
   Create (test_cnt, 256, 256, 1) shape numpy array to be fed 
   into the model as edges from sketch path or dir. Assume sketches
-  to already be in 256x256 color png. All none white pixels in
+  to already be in 256x256 color png. All white pixels in
   sketches wil be convert to edge.
 
   Inputs:
