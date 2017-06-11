@@ -7,7 +7,36 @@ from preprocess import data_utils
 from model import *
 import os
 from scipy.misc import imsave
+from skimage.color import gray2rgb
 import tensorflow as tf
+
+
+def run_on_test_data(
+    data_split_dir, sess, y_s1_256, y_s2,
+    training, edges_batch_placeholder, images_batch_placeholder):
+  test_models_file = os.path.join(data_split_dir, 'test_data.txt')
+  test_edges_batch, test_images_batch = data_loader.one_batch_input(
+      FLAGS.screenshots_dir, test_models_file)
+  test_edges_batch, test_images_batch = sess.run(
+      [test_edges_batch, test_images_batch])
+  y_s1_curr, y_s2_curr = sess.run(
+      [y_s1_256, y_s2],
+      feed_dict={training: False,
+                 edges_batch_placeholder: test_edges_batch,
+                 images_batch_placeholder: test_images_batch})
+  # store images from y_s2 in FLAGS.test_dir
+  image_count = len(test_edges_batch)
+  for i in range(image_count):
+    rgb_edges = np.squeeze(gray2rgb(test_edges_batch[i]))
+    combined_images = np.concatenate(
+        [rgb_edges, y_s1_curr[i], y_s2_curr[i],
+         test_images_batch[i]],
+        axis=1)
+
+    image_file_path = os.path.join(FLAGS.test_dir, 'stage2-%d.png' % i)
+    imsave(image_file_path, combined_images)
+  print('Stored test images in %s' % FLAGS.test_dir)
+
 
 
 # a giant helper function
@@ -199,6 +228,13 @@ def run_a_gan(sess, data_split_dir, num_examples,
     print('Stored test images.')
     return
 
+  if FLAGS.test_dir:
+    run_on_test_data(
+        data_split_dir, sess, y_s1_256, y_s2,
+        training, edges_batch_placeholder, images_batch_placeholder)
+    return
+
+
   coord = tf.train.Coordinator()
   threads = tf.train.start_queue_runners(coord=coord)
 
@@ -296,6 +332,10 @@ if __name__ == '__main__':
   parser.add_argument(
       '--test_sketch', type=str, default=None, required=False,
       help='Path to the test image sketch. Must be of size 256x256.')
+  parser.add_argument(
+      '--test_dir', type=str, default='/tmp/test_outputs', required=False,
+      help='If set, would run the model against a test dataset and output '
+      'images to the test directory')
   parser.add_argument(
       '--stage1_train_dir', type=str, default=None, required=True,
       help='Path to the stage1 chkpt files.')

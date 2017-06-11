@@ -90,6 +90,32 @@ def get_inputs_with_orientations(
           edges_paths_2, image_paths_2, orientations_2)
 
 
+def prepare_edges(edges_file, edges_size):
+  edges = tf.decode_raw(tf.read_file(edges_file), out_type=tf.float32)
+  edges = tf.cast(tf.reshape(edges, [_ORIGINAL_SIZE, _ORIGINAL_SIZE, 1]), dtype=tf.float32)
+  if edges_size != _ORIGINAL_SIZE:
+    edges = tf.image.resize_images(
+        edges, size=[edges_size, edges_size], method=tf.image.ResizeMethod.AREA)
+  # Shift and scale so that edges and image are between -1 and 1
+  edges = 2*edges - 1
+  return edges
+
+def prepare_image(image_file, image_size):
+  image = tf.cast(
+      tf.image.decode_png(tf.read_file(image_file), channels=_CHANNELS),
+      tf.float32)
+  image.set_shape([_ORIGINAL_SIZE, _ORIGINAL_SIZE, 3])
+  if image_size != _ORIGINAL_SIZE:
+    image = tf.image.resize_images(
+        image, size=[image_size, image_size], method=tf.image.ResizeMethod.AREA)
+  # Shift and scale so that edges and image are between -1 and 1
+  image = (image / 128.0) - 1
+  return image
+
+def prepare_orientation(orientation):
+  return tf.one_hot(orientation, 10, on_value=1., off_value=-1., dtype=tf.float32)
+
+
 def input(
     screenshots_dir, model_list_file, batch_size=4, image_size=256, shuffle=True):
   """Creates an input for ShapeNet screenshots and edge data.
@@ -117,23 +143,9 @@ def input(
       get_model_paths(model_list_file, screenshots_dir))
   input_queue = tf.train.slice_input_producer([edges_paths, image_paths])
 
-  edges = tf.decode_raw(tf.read_file(input_queue[0]), out_type=tf.float32)
-  edges = tf.cast(tf.reshape(edges, [_ORIGINAL_SIZE, _ORIGINAL_SIZE, 1]), dtype=tf.float32)
-  image = tf.cast(
-      tf.image.decode_png(tf.read_file(input_queue[1]), channels=_CHANNELS),
-      tf.float32)
-  image.set_shape([_ORIGINAL_SIZE, _ORIGINAL_SIZE, 3])
+  edges = prepare_edges(input_queue[0], image_size)
+  image = prepare_image(input_queue[1], image_size)
 
-  if image_size != _ORIGINAL_SIZE:
-    image = tf.image.resize_images(
-        image, size=[image_size, image_size], method=tf.image.ResizeMethod.AREA)
-    edges = tf.image.resize_images(
-        edges, size=[image_size, image_size], method=tf.image.ResizeMethod.AREA)
-
-  # Shift and scale so that edges and image are between -1 and 1
-  edges = 2*edges - 1
-  image = (image / 128.0) - 1
-  
   if shuffle:
     min_after_dequeue = 10000  # size of buffer to sample from
     num_preprocess_threads = 16
@@ -191,36 +203,11 @@ def multi_view_input(
       [edges_paths_1, image_paths_1, orientations_1,
        edges_paths_2, image_paths_2, orientations_2])
 
-  def prepare_edges(edges_file):
-    edges = tf.decode_raw(tf.read_file(edges_file), out_type=tf.float32)
-    edges = tf.cast(tf.reshape(edges, [_ORIGINAL_SIZE, _ORIGINAL_SIZE, 1]), dtype=tf.float32)
-    if image_size != _ORIGINAL_SIZE:
-      edges = tf.image.resize_images(
-          edges, size=[image_size, image_size], method=tf.image.ResizeMethod.AREA)
-    # Shift and scale so that edges and image are between -1 and 1
-    edges = 2*edges - 1
-    return edges
-
-  def prepare_image(image_file):
-    image = tf.cast(
-        tf.image.decode_png(tf.read_file(image_file), channels=_CHANNELS),
-        tf.float32)
-    image.set_shape([_ORIGINAL_SIZE, _ORIGINAL_SIZE, 3])
-    if image_size != _ORIGINAL_SIZE:
-      image = tf.image.resize_images(
-          image, size=[image_size, image_size], method=tf.image.ResizeMethod.AREA)
-    # Shift and scale so that edges and image are between -1 and 1
-    image = (image / 128.0) - 1
-    return image
-
-  def prepare_orientation(orientation):
-    return tf.one_hot(orientation, 10, on_value=1., off_value=-1., dtype=tf.float32)
-
-  edges_1 = prepare_edges(input_queue[0])
-  image_1 = prepare_image(input_queue[1])
+  edges_1 = prepare_edges(input_queue[0], image_size)
+  image_1 = prepare_image(input_queue[1], image_size)
   orientation_1 = prepare_orientation(input_queue[2])
-  edges_2 = prepare_edges(input_queue[3])
-  image_2 = prepare_image(input_queue[4])
+  edges_2 = prepare_edges(input_queue[3], image_size)
+  image_2 = prepare_image(input_queue[4], image_size)
   orientation_2 = prepare_orientation(input_queue[5])
 
   min_after_dequeue = 10000  # size of buffer to sample from
@@ -235,4 +222,21 @@ def multi_view_input(
       min_after_dequeue=min_after_dequeue)
   return (edges_batch_1, images_batch_1, orientation_batch_1,
           edges_batch_2, images_batch_2, orientation_batch_2)
+
+def one_batch_input(
+    screenshots_dir, model_list_file, image_size=256, batch_size=10):
+  """Input all data as a single batch"""
+  if not os.path.isfile(model_list_file):
+    raise IOError('%s does not exist.' % model_list_file)
+
+  edges_paths, image_paths, _ = get_inputs_for_model_paths(
+      get_model_paths(model_list_file, screenshots_dir))
+  if batch_size > 0:
+    edges_paths = edges_paths[:batch_size]
+    image_paths = image_paths[:batch_size]
+  edges_batch = [prepare_edges(edges, image_size) for edges in edges_paths]
+  images_batch = [prepare_image(image, image_size) for image in image_paths]
+  print(edges_batch)
+  return edges_batch, images_batch
+
 
