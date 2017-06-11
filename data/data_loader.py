@@ -224,7 +224,8 @@ def multi_view_input(
           edges_batch_2, images_batch_2, orientation_batch_2)
 
 def one_batch_input(
-    screenshots_dir, model_list_file, image_size=256, batch_size=10):
+    screenshots_dir, model_list_file, image_size=256, batch_size=10,
+    sample=True):
   """Input all data as a single batch"""
   if not os.path.isfile(model_list_file):
     raise IOError('%s does not exist.' % model_list_file)
@@ -232,11 +233,15 @@ def one_batch_input(
   edges_paths, image_paths, _ = get_inputs_for_model_paths(
       get_model_paths(model_list_file, screenshots_dir))
   if batch_size > 0:
-    edges_paths = edges_paths[:batch_size]
-    image_paths = image_paths[:batch_size]
+    if sample:
+      sample_indexes = np.random.choice(range(len(edges_paths)), size=batch_size)
+      edges_paths = [edges_paths[sample_index] for sample_index in sample_indexes]
+      image_paths = [image_paths[sample_index] for sample_index in sample_indexes]
+    else:
+      edges_paths = edges_paths[:batch_size]
+      image_paths = image_paths[:batch_size]
   edges_batch = [prepare_edges(edges, image_size) for edges in edges_paths]
   images_batch = [prepare_image(image, image_size) for image in image_paths]
-  print(edges_batch)
   return edges_batch, images_batch
 
 

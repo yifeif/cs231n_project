@@ -333,7 +333,7 @@ if __name__ == '__main__':
       '--test_sketch', type=str, default=None, required=False,
       help='Path to the test image sketch. Must be of size 256x256.')
   parser.add_argument(
-      '--test_dir', type=str, default='/tmp/test_outputs', required=False,
+      '--test_dir', type=str, default=None, required=False,
       help='If set, would run the model against a test dataset and output '
       'images to the test directory')
   parser.add_argument(
