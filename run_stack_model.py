@@ -29,8 +29,7 @@ def run_on_test_data(
   for i in range(image_count):
     rgb_edges = np.squeeze(gray2rgb(test_edges_batch[i]))
     combined_images = np.concatenate(
-        [rgb_edges, y_s1_curr[i], y_s2_curr[i],
-         test_images_batch[i]],
+        [rgb_edges, test_images_batch[i], y_s1_curr[i], y_s2_curr[i]],
         axis=1)
 
     image_file_path = os.path.join(FLAGS.test_dir, 'stage2-%d.png' % i)

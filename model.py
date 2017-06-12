@@ -144,7 +144,8 @@ def generator(
               orientations, axis=1), axis=1)
           encoder_outputs['final'] = tf.concat(
               [encoder_outputs['final'], orientations], axis=3)
-          return multi_view_decoder(
+          #return multi_view_decoder(
+          return resize_conv_decoder(
               encoder_outputs, training, dropout_training, model_size)
 
         if decoder == 'default':

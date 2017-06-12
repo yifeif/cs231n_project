@@ -7,7 +7,39 @@ from preprocess import data_utils
 from model import *
 import os
 from scipy.misc import imsave
+from skimage.color import gray2rgb
 import tensorflow as tf
+
+
+def run_on_test_data(
+    data_split_dir, sess, y,
+    training, edges_batch_placeholder, images_batch_placeholder,
+    orientation_placeholder2):
+  test_models_file = os.path.join(data_split_dir, 'test_data.txt')
+  test_edges_batch, test_images_batch, test_orien_batch = (
+      data_loader.one_batch_input_with_orientations(
+          FLAGS.screenshots_dir, test_models_file, image_size=64))
+  test_edges_batch, test_images_batch, test_orien_batch = sess.run(
+      [test_edges_batch, test_images_batch, test_orien_batch])
+  y_curr = sess.run(
+      y,
+      feed_dict={training: False,
+                 edges_batch_placeholder: test_edges_batch,
+                 images_batch_placeholder: test_images_batch,
+                 orientation_placeholder2: test_orien_batch})
+  # store images from y in FLAGS.test_dir
+  image_count = len(test_edges_batch)
+  for i in range(image_count):
+    rgb_edges = np.squeeze(gray2rgb(test_edges_batch[i]))
+    combined_images = np.concatenate(
+        [rgb_edges, test_images_batch[i], y_curr[i]],
+        axis=1)
+
+    image_file_path = os.path.join(FLAGS.test_dir, 'multi-view-%d.png' % i)
+    imsave(image_file_path, combined_images)
+  print('Stored test images in %s' % FLAGS.test_dir)
+
+
 
 
 # a giant helper function
@@ -151,6 +183,15 @@ def run_a_gan(sess, data_split_dir, num_examples,
     print('Stored test images.')
     return
 
+  if FLAGS.test_dir:
+    run_on_test_data(
+        data_split_dir, sess, y,
+        training, edges_batch_placeholder, images_batch_placeholder,
+        orien_batch_placeholder2)
+    gs = sess.run(global_step)
+    print('Stored images for iteration %d' % gs)
+    return
+
   coord = tf.train.Coordinator()
   threads = tf.train.start_queue_runners(coord=coord)
 
@@ -255,6 +296,10 @@ if __name__ == '__main__':
   parser.add_argument(
       '--test_sketch', type=str, default=None, required=False,
       help='Path to the test image sketch. Must be of size 256x256.')
+  parser.add_argument(
+      '--test_dir', type=str, default=None, required=False,
+      help='If set, would run the model against a test dataset and output '
+      'images to the test directory')
   parser.add_argument(
       '--input_orientation', type=int, default=None, required=False,
       help='Allows specifying input orientation. For ex. if orientation is 9 '

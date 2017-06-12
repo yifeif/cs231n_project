@@ -2,6 +2,7 @@
 import argparse
 import numpy as np
 import os
+import re
 import tensorflow as tf
 
 
@@ -32,7 +33,7 @@ def get_model_paths(model_paths_file, screenshot_dir,
               for path_suffix in path_suffixes if filter_str in path_suffix]
 
 
-def get_inputs_for_model_paths(model_paths):
+def get_inputs_for_model_paths(model_paths, pattern=None):
   """Gets a tuples of inputs for each path in model_paths.
 
   Args:
@@ -51,8 +52,9 @@ def get_inputs_for_model_paths(model_paths):
     for orientation in range(_ORIENTATIONS_PER_MODEL):
       edges_file_path = '%s/%s-%d_padded.bin' % (model_path, model_name, orientation)
       image_file_path = '%s/%s-%d_padded.png' % (model_path, model_name, orientation)
-      edge_files.append(edges_file_path)
-      image_files.append(image_file_path)
+      if not pattern or re.matches(image_file_path):
+        edge_files.append(edges_file_path)
+        image_files.append(image_file_path)
   orientations = list(range(_ORIENTATIONS_PER_MODEL))*len(model_paths)
 
   return edge_files, image_files, orientations
@@ -224,7 +226,7 @@ def multi_view_input(
           edges_batch_2, images_batch_2, orientation_batch_2)
 
 def one_batch_input(
-    screenshots_dir, model_list_file, image_size=256, batch_size=10,
+    screenshots_dir, model_list_file, image_size=256, batch_size=50,
     sample=True):
   """Input all data as a single batch"""
   if not os.path.isfile(model_list_file):
@@ -235,6 +237,7 @@ def one_batch_input(
   if batch_size > 0:
     if sample:
       sample_indexes = np.random.choice(range(len(edges_paths)), size=batch_size)
+      print(sample_indexes)
       edges_paths = [edges_paths[sample_index] for sample_index in sample_indexes]
       image_paths = [image_paths[sample_index] for sample_index in sample_indexes]
     else:
@@ -243,5 +246,35 @@ def one_batch_input(
   edges_batch = [prepare_edges(edges, image_size) for edges in edges_paths]
   images_batch = [prepare_image(image, image_size) for image in image_paths]
   return edges_batch, images_batch
+
+def one_batch_input_with_orientations(
+    screenshots_dir, model_list_file, image_size=256, batch_size=50,
+    sample=True, input_orientation=9, object_type='car'):
+  """Input all data as a single batch"""
+  if not os.path.isfile(model_list_file):
+    raise IOError('%s does not exist.' % model_list_file)
+
+  edges_paths, image_paths, orientations = get_inputs_for_model_paths(
+      get_model_paths(model_list_file, screenshots_dir,
+      filter_str='/%s/' % object_type))
+
+  (edges_paths_1, _, _, _, image_paths_2, orientations_2
+   ) = get_inputs_with_orientations(
+      edges_paths, image_paths, orientations, input_orientation)
+  if batch_size > 0:
+    if sample:
+      np.random.seed(512)
+      sample_indexes = np.random.choice(range(len(edges_paths_1)), size=batch_size)
+      edges_paths_1 = [edges_paths_1[sample_index] for sample_index in sample_indexes]
+      image_paths_2 = [image_paths_2[sample_index] for sample_index in sample_indexes]
+      orientations_2 = [orientations_2[sample_index] for sample_index in sample_indexes]
+    else:
+      edges_paths_1 = edges_paths_1[:batch_size]
+      image_paths_2 = image_paths_2[:batch_size]
+      orientations_2 = orientations_2[:batch_size]
+  edges_batch_1 = [prepare_edges(edges, image_size) for edges in edges_paths_1]
+  images_batch_2 = [prepare_image(image, image_size) for image in image_paths_2]
+  orientations_2 = [prepare_orientation(orien) for orien in orientations_2]
+  return edges_batch_1, images_batch_2, orientations_2
 
 
