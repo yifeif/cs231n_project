@@ -98,7 +98,7 @@ def sketch_to_edge(sketch_path):
     sketch = Image.open(p).convert('L')
     sketch = np.array(sketch)
     if sketch.shape != (256, 256):
-      raise ValueError('Sketch needs to be 256x256, but got: ' + str(image.shape))
+      raise ValueError('Sketch needs to be 256x256, but got: ' + str(sketch.shape))
     sketch = sketch == 255
     sketch = sketch.reshape([256, 256, 1])
     sketch = sketch.astype(np.float32)*2 - 1
